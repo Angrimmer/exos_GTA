@@ -1,0 +1,22 @@
+require("dotenv").config();
+const express = require("express");
+const app = express();
+const PORT = process.env.PORT || 3000;
+const cors = require("cors")
+
+const carsRouter = require("./src/routes/cars");
+const usersRouter = require("./src/routes/users");
+
+app.use(express.json());
+app.use(cors())
+
+app.get("/api/health", (req, res) => {
+  res.json({ status: "ok", message: "Backend du garage gta fonctionne" });
+});
+
+app.use("/api/cars", carsRouter); 
+app.use("/api/users", usersRouter); 
+
+app.listen(PORT, () => {
+  console.log(`API backend démarrée sur http://localhost:${PORT}`);
+});

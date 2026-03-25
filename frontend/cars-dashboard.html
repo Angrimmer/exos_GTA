@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>GARAGE // CAR DATABASE</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0a;
+      --surface: #111111;
+      --border: #222222;
+      --accent: #e8ff47;
+      --accent2: #ff4757;
+      --text: #f0f0f0;
+      --muted: #555;
+      --legendary: #f59e0b;
+      --rare: #6366f1;
+      --common: #10b981;
+      --speed-bar: #e8ff47;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* NOISE OVERLAY */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 9999;
+      opacity: 0.4;
+    }
+
+    header {
+      border-bottom: 1px solid var(--border);
+      padding: 2rem 3rem;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      background: var(--bg);
+      z-index: 100;
+    }
+
+    .logo {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 2.8rem;
+      letter-spacing: 0.15em;
+      line-height: 1;
+    }
+    .logo span { color: var(--accent); }
+
+    .header-meta {
+      font-size: 0.7rem;
+      color: var(--muted);
+      text-align: right;
+      letter-spacing: 0.1em;
+    }
+    .header-meta .count {
+      font-size: 1.6rem;
+      font-family: 'Bebas Neue', sans-serif;
+      color: var(--text);
+      display: block;
+    }
+
+    /* CONTROLS */
+    .controls {
+      padding: 1.5rem 3rem;
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      flex-wrap: wrap;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .search-wrap {
+      flex: 1;
+      min-width: 200px;
+      position: relative;
+    }
+    .search-wrap::before {
+      content: '⌕';
+      position: absolute;
+      left: 1rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+      font-size: 1.2rem;
+    }
+    input[type="text"] {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      font-size: 0.8rem;
+      padding: 0.7rem 1rem 0.7rem 2.5rem;
+      outline: none;
+      letter-spacing: 0.05em;
+      transition: border-color 0.2s;
+    }
+    input[type="text"]:focus { border-color: var(--accent); }
+
+    select {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      font-size: 0.75rem;
+      padding: 0.7rem 1rem;
+      outline: none;
+      cursor: pointer;
+      letter-spacing: 0.05em;
+      transition: border-color 0.2s;
+    }
+    select:focus { border-color: var(--accent); }
+
+    .btn-refresh {
+      background: var(--accent);
+      color: #000;
+      border: none;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1rem;
+      letter-spacing: 0.12em;
+      padding: 0.65rem 1.5rem;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+    }
+    .btn-refresh:hover { background: #d4eb3a; }
+    .btn-refresh:active { transform: scale(0.97); }
+
+    /* STATS BAR */
+    .stats-bar {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .stat-item {
+      flex: 1;
+      padding: 1rem 2rem;
+      border-right: 1px solid var(--border);
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity 0.4s, transform 0.4s;
+    }
+    .stat-item:last-child { border-right: none; }
+    .stat-item.visible { opacity: 1; transform: none; }
+    .stat-label { font-size: 0.6rem; letter-spacing: 0.15em; color: var(--muted); text-transform: uppercase; }
+    .stat-value { font-family: 'Bebas Neue', sans-serif; font-size: 2rem; color: var(--accent); }
+
+    /* GRID */
+    .grid-wrap {
+      padding: 2rem 3rem;
+    }
+
+    .cars-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 1px;
+      background: var(--border);
+    }
+
+    /* CARD */
+    .car-card {
+      background: var(--surface);
+      padding: 1.5rem;
+      position: relative;
+      overflow: hidden;
+      cursor: default;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.35s ease, transform 0.35s ease, background 0.2s;
+      animation: none;
+    }
+    .car-card.visible { opacity: 1; transform: none; }
+    .car-card:hover { background: #181818; }
+
+    .car-card::after {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 3px;
+    }
+    .car-card[data-rarity="legendary"]::after { background: var(--legendary); }
+    .car-card[data-rarity="rare"]::after { background: var(--rare); }
+    .car-card[data-rarity="common"]::after { background: var(--common); }
+    .car-card[data-rarity="uncommon"]::after { background: #38bdf8; }
+
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 1rem;
+    }
+
+    .car-id {
+      font-size: 0.6rem;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+    }
+
+    .rarity-badge {
+      font-size: 0.6rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 0.2rem 0.5rem;
+      font-weight: 500;
+    }
+    .rarity-badge.legendary { background: rgba(245,158,11,0.15); color: var(--legendary); border: 1px solid rgba(245,158,11,0.3); }
+    .rarity-badge.rare { background: rgba(99,102,241,0.15); color: #818cf8; border: 1px solid rgba(99,102,241,0.3); }
+    .rarity-badge.common { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
+    .rarity-badge.uncommon { background: rgba(56,189,248,0.15); color: #7dd3fc; border: 1px solid rgba(56,189,248,0.3); }
+
+    .car-name {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 2rem;
+      letter-spacing: 0.08em;
+      line-height: 1;
+      margin-bottom: 0.15rem;
+    }
+
+    .car-brand {
+      font-size: 0.7rem;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 1.2rem;
+    }
+
+    .car-type {
+      display: inline-block;
+      font-size: 0.6rem;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      padding: 0.15rem 0.5rem;
+      text-transform: uppercase;
+      margin-bottom: 1.2rem;
+    }
+
+    /* SPEED BAR */
+    .speed-section { margin-bottom: 1rem; }
+    .speed-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.65rem;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      margin-bottom: 0.4rem;
+    }
+    .speed-label span:last-child { color: var(--text); font-weight: 500; }
+    .speed-track {
+      height: 2px;
+      background: var(--border);
+      overflow: hidden;
+    }
+    .speed-fill {
+      height: 100%;
+      background: var(--accent);
+      width: 0%;
+      transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* PRICE */
+    .car-price {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.4rem;
+      letter-spacing: 0.06em;
+      color: var(--text);
+    }
+    .car-price span { font-family: 'DM Mono'; font-size: 0.65rem; color: var(--muted); }
+
+    /* LOADING */
+    .loading {
+      padding: 6rem 3rem;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.8rem;
+      letter-spacing: 0.15em;
+    }
+    .loading .spinner {
+      width: 24px; height: 24px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 1rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ERROR */
+    .error-state {
+      padding: 4rem 3rem;
+      text-align: center;
+    }
+    .error-code {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 5rem;
+      color: var(--accent2);
+      letter-spacing: 0.1em;
+      line-height: 1;
+    }
+    .error-msg { font-size: 0.75rem; color: var(--muted); letter-spacing: 0.1em; margin-top: 0.5rem; }
+    .error-detail { font-size: 0.65rem; color: #333; margin-top: 0.5rem; }
+
+    /* EMPTY */
+    .empty-state {
+      padding: 4rem 3rem;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.75rem;
+      letter-spacing: 0.1em;
+      grid-column: 1 / -1;
+    }
+
+    /* VIEW TOGGLE */
+    .view-toggle { display: flex; gap: 0; }
+    .view-btn {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 0.65rem 0.8rem;
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: all 0.15s;
+    }
+    .view-btn.active { background: var(--border); color: var(--accent); }
+
+    /* LIST VIEW */
+    .cars-grid.list-view {
+      grid-template-columns: 1fr;
+      gap: 1px;
+    }
+    .cars-grid.list-view .car-card {
+      display: grid;
+      grid-template-columns: 60px 1fr 1fr 1fr 120px 140px;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem 1.5rem;
+    }
+    .cars-grid.list-view .card-top { margin: 0; }
+    .cars-grid.list-view .car-name { font-size: 1.3rem; margin: 0; }
+    .cars-grid.list-view .car-brand { margin: 0; }
+    .cars-grid.list-view .car-type { margin: 0; }
+    .cars-grid.list-view .speed-section { margin: 0; }
+    .cars-grid.list-view .car-price { font-size: 1rem; }
+    .cars-grid.list-view .rarity-badge { display: none; }
+
+    @media (max-width: 768px) {
+      header { padding: 1.5rem; }
+      .controls { padding: 1rem 1.5rem; }
+      .grid-wrap { padding: 1rem 1.5rem; }
+      .stats-bar { flex-wrap: wrap; }
+      .stat-item { min-width: 50%; }
+      .cars-grid.list-view { grid-template-columns: 1fr; }
+      .cars-grid.list-view .car-card { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">GARAGE<span>//</span>DB</div>
+  <div class="header-meta">
+    <span class="count" id="total-count">—</span>
+    VEHICLES INDEXED
+  </div>
+</header>
+
+<div class="stats-bar" id="stats-bar"></div>
+
+<div class="controls">
+  <div class="search-wrap">
+    <input type="text" id="search" placeholder="SEARCH BY NAME OR BRAND..." />
+  </div>
+  <select id="filter-type">
+    <option value="">ALL TYPES</option>
+  </select>
+  <select id="filter-rarity">
+    <option value="">ALL RARITIES</option>
+  </select>
+  <select id="sort-by">
+    <option value="id">SORT: ID</option>
+    <option value="name">SORT: NAME</option>
+    <option value="price_asc">SORT: PRICE ↑</option>
+    <option value="price_desc">SORT: PRICE ↓</option>
+    <option value="speed">SORT: SPEED</option>
+  </select>
+  <div class="view-toggle">
+    <button class="view-btn active" id="btn-grid" title="Grid view">⊞</button>
+    <button class="view-btn" id="btn-list" title="List view">☰</button>
+  </div>
+  <button class="btn-refresh" id="btn-refresh">↻ REFRESH</button>
+</div>
+
+<div class="grid-wrap">
+  <div class="cars-grid" id="cars-grid">
+    <div class="loading">
+      <div class="spinner"></div>
+      CONNECTING TO GARAGE...
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'http://localhost:3000/api/cars/';
+let allCars = [];
+let maxSpeed = 0;
+
+// ─── FETCH ────────────────────────────────────────────────────────────────────
+async function fetchCars() {
+  const grid = document.getElementById('cars-grid');
+  grid.innerHTML = `<div class="loading"><div class="spinner"></div>LOADING VEHICLES...</div>`;
+
+  try {
+    const res = await fetch(API);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    allCars = Array.isArray(data) ? data : [data];
+    maxSpeed = Math.max(...allCars.map(c => c.max_speed || 0));
+    populateFilters();
+    buildStats();
+    render();
+  } catch (err) {
+    grid.innerHTML = `
+      <div class="error-state">
+        <div class="error-code">ERR</div>
+        <div class="error-msg">COULD NOT REACH localhost:3000/cars</div>
+        <div class="error-detail">${err.message}</div>
+      </div>`;
+    document.getElementById('total-count').textContent = '0';
+  }
+}
+
+// ─── FILTERS ─────────────────────────────────────────────────────────────────
+function populateFilters() {
+  const types = [...new Set(allCars.map(c => c.type).filter(Boolean))].sort();
+  const rarities = [...new Set(allCars.map(c => c.rarity).filter(Boolean))].sort();
+
+  const typeEl = document.getElementById('filter-type');
+  typeEl.innerHTML = '<option value="">ALL TYPES</option>' +
+    types.map(t => `<option value="${t}">${t.toUpperCase()}</option>`).join('');
+
+  const rarEl = document.getElementById('filter-rarity');
+  rarEl.innerHTML = '<option value="">ALL RARITIES</option>' +
+    rarities.map(r => `<option value="${r}">${r.toUpperCase()}</option>`).join('');
+}
+
+// ─── STATS ────────────────────────────────────────────────────────────────────
+function buildStats() {
+  document.getElementById('total-count').textContent = allCars.length;
+
+  const avgPrice = allCars.reduce((a, c) => a + parseFloat(c.price || 0), 0) / allCars.length;
+  const topSpeed = Math.max(...allCars.map(c => c.max_speed || 0));
+  const brands = new Set(allCars.map(c => c.brand)).size;
+  const legendary = allCars.filter(c => c.rarity === 'legendary').length;
+
+  const stats = [
+    { label: 'Avg Price', value: '$' + formatPrice(avgPrice) },
+    { label: 'Top Speed', value: topSpeed + ' km/h' },
+    { label: 'Brands', value: brands },
+    { label: 'Legendary', value: legendary },
+  ];
+
+  const bar = document.getElementById('stats-bar');
+  bar.innerHTML = stats.map(s => `
+    <div class="stat-item">
+      <div class="stat-label">${s.label}</div>
+      <div class="stat-value">${s.value}</div>
+    </div>`).join('');
+
+  // stagger animate in
+  requestAnimationFrame(() => {
+    bar.querySelectorAll('.stat-item').forEach((el, i) => {
+      setTimeout(() => el.classList.add('visible'), i * 80);
+    });
+  });
+}
+
+// ─── RENDER ───────────────────────────────────────────────────────────────────
+function render() {
+  const search = document.getElementById('search').value.toLowerCase();
+  const type = document.getElementById('filter-type').value;
+  const rarity = document.getElementById('filter-rarity').value;
+  const sort = document.getElementById('sort-by').value;
+
+  let cars = allCars.filter(c => {
+    if (search && !`${c.name} ${c.brand}`.toLowerCase().includes(search)) return false;
+    if (type && c.type !== type) return false;
+    if (rarity && c.rarity !== rarity) return false;
+    return true;
+  });
+
+  cars.sort((a, b) => {
+    if (sort === 'name') return a.name.localeCompare(b.name);
+    if (sort === 'price_asc') return parseFloat(a.price) - parseFloat(b.price);
+    if (sort === 'price_desc') return parseFloat(b.price) - parseFloat(a.price);
+    if (sort === 'speed') return (b.max_speed || 0) - (a.max_speed || 0);
+    return a.id - b.id;
+  });
+
+  const grid = document.getElementById('cars-grid');
+
+  if (!cars.length) {
+    grid.innerHTML = `<div class="empty-state">NO VEHICLES MATCH YOUR FILTERS</div>`;
+    return;
+  }
+
+  grid.innerHTML = cars.map(c => cardHTML(c)).join('');
+
+  // animate cards in
+  requestAnimationFrame(() => {
+    grid.querySelectorAll('.car-card').forEach((el, i) => {
+      setTimeout(() => {
+        el.classList.add('visible');
+        const fill = el.querySelector('.speed-fill');
+        if (fill) fill.style.width = fill.dataset.pct + '%';
+      }, Math.min(i * 40, 400));
+    });
+  });
+}
+
+function cardHTML(c) {
+  const pct = maxSpeed > 0 ? Math.round((c.max_speed / maxSpeed) * 100) : 0;
+  const rar = (c.rarity || 'common').toLowerCase();
+  return `
+    <div class="car-card" data-rarity="${rar}">
+      <div class="card-top">
+        <div class="car-id">#${String(c.id).padStart(4,'0')}</div>
+        <div class="rarity-badge ${rar}">${rar}</div>
+      </div>
+      <div class="car-name">${c.name}</div>
+      <div class="car-brand">${c.brand || '—'}</div>
+      <div class="car-type">${c.type || '—'}</div>
+      <div class="speed-section">
+        <div class="speed-label">
+          <span>MAX SPEED</span>
+          <span>${c.max_speed ? c.max_speed + ' KM/H' : '—'}</span>
+        </div>
+        <div class="speed-track"><div class="speed-fill" data-pct="${pct}"></div></div>
+      </div>
+      <div class="car-price"><span>$</span>${formatPrice(parseFloat(c.price || 0))}</div>
+    </div>`;
+}
+
+function formatPrice(n) {
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + 'M';
+  if (n >= 1_000) return (n / 1_000).toFixed(0) + 'K';
+  return n.toFixed(0);
+}
+
+// ─── EVENTS ───────────────────────────────────────────────────────────────────
+document.getElementById('search').addEventListener('input', render);
+document.getElementById('filter-type').addEventListener('change', render);
+document.getElementById('filter-rarity').addEventListener('change', render);
+document.getElementById('sort-by').addEventListener('change', render);
+document.getElementById('btn-refresh').addEventListener('click', fetchCars);
+
+document.getElementById('btn-grid').addEventListener('click', () => {
+  document.getElementById('cars-grid').classList.remove('list-view');
+  document.getElementById('btn-grid').classList.add('active');
+  document.getElementById('btn-list').classList.remove('active');
+});
+document.getElementById('btn-list').addEventListener('click', () => {
+  document.getElementById('cars-grid').classList.add('list-view');
+  document.getElementById('btn-list').classList.add('active');
+  document.getElementById('btn-grid').classList.remove('active');
+});
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+fetchCars();
+</script>
+</body>
+</html>
