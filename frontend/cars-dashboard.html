@@ -412,6 +412,105 @@
   </div>
 </div>
 
+<h2>Ajouter une voiture</h2>
+
+<form id="add-car-form" class="car-form">
+  <label>
+    Nom :
+    <input type="text" name="name" required />
+  </label>
+  <label>
+    Marque :
+    <input type="text" name="brand" required />
+  </label>
+  <label>
+    Type :
+    <input type="text" name="type" />
+  </label>
+  <label>
+    Vitesse max :
+    <input type="number" name="max_speed" />
+  </label>
+  <label>
+    Prix :
+    <input type="number" step="0.01" name="price" />
+  </label>
+  <label>
+    Rareté :
+    <input type="text" name="rarity" />
+  </label>
+
+  <button type="submit" class="car-form__button">Ajouter</button>
+</form>
+
+<p id="add-car-message"></p>
+
+<style>
+  .car-form {
+  align-items: center;
+  max-width: 400px;
+  margin: 2rem 0;
+  padding: 1.5rem;
+  border-radius: 8px;
+  background-color: #1e293b; 
+  color: #f9fafb;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.car-form label {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.9rem;
+  gap: 0.25rem;
+}
+
+.car-form input[type="text"],
+.car-form input[type="number"] {
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  border: 1px solid #334155;
+  background-color: #0f172a;
+  color: #e5e7eb;
+  font-size: 0.9rem;
+}
+
+.car-form input[type="text"]:focus,
+.car-form input[type="number"]:focus {
+  outline: none;
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 1px #38bdf8;
+}
+
+.car-form__button {
+  margin-top: 0.5rem;
+  padding: 0.6rem 1rem;
+  border: none;
+  border-radius: 4px;
+  background: #22c55e;
+  color: #022c22;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.car-form__button:hover {
+  background: #16a34a;
+  transform: translateY(-1px);
+}
+
+.car-form__button:active {
+  transform: translateY(0);
+}
+
+#add-car-message {
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+}
+
+</style>
+
 <script>
 const API = 'http://localhost:3000/api/cars/';
 let allCars = [];
@@ -486,6 +585,55 @@ function buildStats() {
     });
   });
 }
+
+const form = document.getElementById("add-car-form");
+  const message = document.getElementById("add-car-message");
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const formData = new FormData(form);
+    const body = {
+      name: formData.get("name"),
+      brand: formData.get("brand"),
+      type: formData.get("type") || "Standard",
+      max_speed: formData.get("max_speed") ? Number(formData.get("max_speed")) : null,
+      price: formData.get("price") ? Number(formData.get("price")) : null,
+      rarity: formData.get("rarity") || null
+    };
+
+    try {
+      const response = await fetch("http://localhost:3000/api/cars", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(body)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        message.textContent = "Erreur: " + (errorData.message || "Impossible d'ajouter la voiture");
+        message.style.color = "red";
+        return;
+      }
+
+      const newCar = await response.json();
+      message.textContent = "Voiture ajoutée (id " + newCar.id + ")";
+      message.style.color = "green";
+
+      form.reset();
+
+      // Optionnel : rafraîchir la liste des voitures si tu as déjà un fetch pour le tableau
+      if (typeof loadCars === "function") {
+        loadCars();
+      }
+    } catch (error) {
+      console.error(error);
+      message.textContent = "Erreur réseau";
+      message.style.color = "red";
+    }
+  });
 
 // ─── RENDER ───────────────────────────────────────────────────────────────────
 function render() {
