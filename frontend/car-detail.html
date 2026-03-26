@@ -246,41 +246,59 @@
 
 
   <script>
-    const id = new URLSearchParams(window.location.search).get('id');
+const id = new URLSearchParams(window.location.search).get('id');
 
-    if (!id) {
-      document.getElementById('detail-wrap').innerHTML = '<p>ID manquant</p>';
-    } else {
-      fetch(`http://localhost:3000/api/cars/${id}`)
-        .then(res => {
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          return res.json();
-        })
-        .then(car => {
-          document.title = car.name + ' // GARAGE DB';
-          document.getElementById('detail-wrap').innerHTML = `
-            <div class="car-detail">
-              <div class="detail-id">#${String(car.id).padStart(4, '0')}</div>
-              <h1 class="car-name">${car.name}</h1>
-              <div class="car-brand">${car.brand || '—'}</div>
-              <div class="car-type">${car.type || '—'}</div>
-              <ul class="car-stats">
-                ><span>RARITY</span><strong>${car.rarity || '—'}</strong></li>
-                ><span>MAX SPEED</span><strong>${car.max_speed ? car.max_speed + ' KM/H' : '—'}</strong></li>
-                ><span>PRICE</span><strong>$${car.price || '0'}</strong></li>
-                ><span>ADDED</span><strong>${car.created_at ? new Date(car.created_at).toLocaleDateString() : '—'}</strong></li>
-              </ul>
+if (!id) {
+  document.getElementById('detail-wrap').innerHTML = '<p>ID manquant</p>';
+} else {
+  fetch(`http://localhost:3000/api/vehicles/${id}`)
+    .then(res => {
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    })
+    .then(car => {
+      const rar = (car.rarity || 'common').toLowerCase();
+      document.title = car.name + ' // GARAGE DB';
+      document.getElementById('detail-wrap').innerHTML = `
+        <div class="car-detail">
+          <div class="detail-id">#${String(car.id).padStart(4, '0')}</div>
+          <h1 class="car-name">${car.name}</h1>
+          <div class="car-brand">${car.brand || '—'}</div>
+          <div class="car-type">${car.type || '—'}</div>
+          <span class="rarity-badge ${rar}">${rar}</span>
+          <hr class="divider" />
+          <ul class="car-stats">
+            ><span>MAX SPEED</span><strong>${car.max_speed ? car.max_speed + ' KM/H' : '—'}</strong></li>
+            ><span>PRICE</span><strong>$${car.price || '0'}</strong></li>
+            ><span>ADDED</span><strong>${car.created_at ? new Date(car.created_at).toLocaleDateString() : '—'}</strong></li>
+          </ul>
+          <div class="speed-section">
+            <div class="speed-label">
+              <span>MAX SPEED</span>
+              <span>${car.max_speed ? car.max_speed + ' KM/H' : '—'}</span>
             </div>
-          `;
-        })
-        .catch(err => {
-          document.getElementById('detail-wrap').innerHTML = `
-            <div class="error-state">
-              <div class="error-code">ERR</div>
-              <div class="error-msg">${err.message}</div>
-            </div>`;
-        });
-    }
+            <div class="speed-track">
+              <div class="speed-fill" id="speed-fill" data-pct="${car.max_speed ? Math.round((car.max_speed / 1200) * 100) : 0}"></div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // Animer la barre de vitesse (max référence = 1200 km/h = Hydra)
+      requestAnimationFrame(() => {
+        const fill = document.getElementById('speed-fill');
+        if (fill) fill.style.width = fill.dataset.pct + '%';
+      });
+    })
+    .catch(err => {
+      document.getElementById('detail-wrap').innerHTML = `
+        <div class="error-state">
+          <div class="error-code">ERR</div>
+          <div class="error-msg">${err.message}</div>
+        </div>`;
+    });
+}
+
   </script>
 </body>
 </html>

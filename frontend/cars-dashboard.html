@@ -30,6 +30,11 @@
       overflow-x: hidden;
     }
 
+    .admin-only {
+  display: none;
+}
+
+
     /* NOISE OVERLAY */
     body::before {
       content: '';
@@ -459,6 +464,7 @@
   </div>
 </div>
 
+<div class="admin-only" id="admin-section">
 <h2>Ajouter une voiture</h2>
 
 <form id="add-car-form" class="car-form">
@@ -489,6 +495,7 @@
 
   <button type="submit" class="car-form__button">Ajouter</button>
 </form>
+</div>
 
 <p id="add-car-message"></p>
 
@@ -804,7 +811,24 @@ document.getElementById('tab-shop').addEventListener('click', () => {
   fetchCars();
 });
 
+// ─── AUTH CHECK ───────────────────────────────────────────────────────────────
+function checkAdminAccess() {
+  const token = localStorage.getItem('token');
+  if (!token) return;
+
+  try {
+    // Décoder le payload du JWT (sans vérification de signature côté front)
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    if (payload.role === 'admin') {
+      document.getElementById('admin-section').style.display = 'block';
+    }
+  } catch (e) {
+    // Token invalide ou corrompu, on ignore
+  }
+}
+
 // ─── INIT ─────────────────────────────────────────────────────────────────────
+checkAdminAccess();
 fetchCars();
 
 </script>
