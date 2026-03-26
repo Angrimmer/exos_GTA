@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>LOGIN // GARAGE DB</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0a;
+      --surface: #111111;
+      --border: #222222;
+      --accent: #e8ff47;
+      --accent2: #ff4757;
+      --text: #f0f0f0;
+      --muted: #555;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 9999;
+      opacity: 0.4;
+    }
+
+    header {
+      border-bottom: 1px solid var(--border);
+      padding: 2rem 3rem;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      background: var(--bg);
+      z-index: 100;
+    }
+
+    .logo {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 2.8rem;
+      letter-spacing: 0.15em;
+      line-height: 1;
+    }
+    .logo span { color: var(--accent); }
+
+    .back-btn {
+      font-size: 0.75rem;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+      text-decoration: none;
+      border: 1px solid var(--border);
+      padding: 0.5rem 1rem;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .back-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+    .login-wrap {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem;
+    }
+
+    .login-box {
+      width: 100%;
+      max-width: 420px;
+      border: 1px solid var(--border);
+      padding: 2.5rem;
+    }
+
+    /* MODE TOGGLE */
+    .mode-toggle {
+      display: flex;
+      margin-bottom: 2rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .mode-btn {
+      flex: 1;
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--muted);
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.1rem;
+      letter-spacing: 0.12em;
+      padding: 0.5rem;
+      cursor: pointer;
+      transition: color 0.2s, border-color 0.2s;
+      margin-bottom: -1px;
+    }
+    .mode-btn:hover { color: var(--text); }
+    .mode-btn.active { color: var(--accent); border-bottom: 2px solid var(--accent); }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      margin-bottom: 1.2rem;
+    }
+
+    .field label {
+      font-size: 0.6rem;
+      letter-spacing: 0.15em;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+
+    .field input {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      font-size: 0.85rem;
+      padding: 0.75rem 1rem;
+      outline: none;
+      transition: border-color 0.2s;
+      width: 100%;
+    }
+    .field input:focus { border-color: var(--accent); }
+
+    .btn-submit {
+      width: 100%;
+      background: var(--accent);
+      color: #000;
+      border: none;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.1rem;
+      letter-spacing: 0.15em;
+      padding: 0.8rem;
+      cursor: pointer;
+      margin-top: 0.5rem;
+      transition: background 0.15s, transform 0.1s;
+    }
+    .btn-submit:hover { background: #d4eb3a; }
+    .btn-submit:active { transform: scale(0.98); }
+
+    .form-message {
+      font-size: 0.7rem;
+      letter-spacing: 0.08em;
+      margin-top: 1rem;
+      min-height: 1rem;
+    }
+    .form-message.error   { color: var(--accent2); }
+    .form-message.success { color: var(--common, #10b981); }
+
+    /* Champ username caché en mode login */
+    #field-username { display: none; }
+
+    @media (max-width: 768px) {
+      header { padding: 1.5rem; }
+      .login-wrap { padding: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">GARAGE<span>//</span>DB</div>
+  <a href="cars-dashboard.html" class="back-btn">← BACK</a>
+</header>
+
+<div class="login-wrap">
+  <div class="login-box">
+
+    <!-- TOGGLE -->
+    <div class="mode-toggle">
+      <button class="mode-btn active" id="btn-login-mode">LOGIN</button>
+      <button class="mode-btn" id="btn-register-mode">REGISTER</button>
+    </div>
+
+    <form id="auth-form">
+      <div class="field" id="field-username">
+        <label>Username</label>
+        <input type="text" id="username" placeholder="votre pseudo" />
+      </div>
+      <div class="field">
+        <label>Email</label>
+        <input type="email" id="email" placeholder="user@domain.com" required />
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input type="password" id="password" placeholder="••••••••" required />
+      </div>
+      <button type="submit" class="btn-submit" id="btn-submit">CONNECT</button>
+      <div class="form-message" id="form-message"></div>
+    </form>
+
+  </div>
+</div>
+
+<script>
+  // Vérif token existant
+  const existingToken = localStorage.getItem('token');
+  if (existingToken) {
+    try {
+      const payload = JSON.parse(atob(existingToken.split('.')[1]));
+      if (payload.exp * 1000 > Date.now()) {
+        window.location.href = 'cars-dashboard.html';
+      } else {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+      }
+    } catch (e) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+    }
+  }
+
+  let currentMode = 'login';
+
+  const btnLoginMode    = document.getElementById('btn-login-mode');
+  const btnRegisterMode = document.getElementById('btn-register-mode');
+  const fieldUsername   = document.getElementById('field-username');
+  const btnSubmit       = document.getElementById('btn-submit');
+  const messageEl       = document.getElementById('form-message');
+
+  // Switch vers LOGIN
+  btnLoginMode.addEventListener('click', () => {
+    currentMode = 'login';
+    btnLoginMode.classList.add('active');
+    btnRegisterMode.classList.remove('active');
+    fieldUsername.style.display = 'none';
+    document.getElementById('username').removeAttribute('required');
+    btnSubmit.textContent = 'CONNECT';
+    messageEl.textContent = '';
+    messageEl.className = 'form-message';
+  });
+
+  // Switch vers REGISTER
+  btnRegisterMode.addEventListener('click', () => {
+    currentMode = 'register';
+    btnRegisterMode.classList.add('active');
+    btnLoginMode.classList.remove('active');
+    fieldUsername.style.display = 'flex';
+    document.getElementById('username').setAttribute('required', '');
+    btnSubmit.textContent = 'CREATE ACCOUNT';
+    messageEl.textContent = '';
+    messageEl.className = 'form-message';
+  });
+
+  // Soumission
+  document.getElementById('auth-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const email    = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+    const username = document.getElementById('username').value;
+
+    messageEl.textContent = '';
+    messageEl.className = 'form-message';
+
+    try {
+      if (currentMode === 'login') {
+        // ── LOGIN ──
+        const res  = await fetch('http://localhost:3000/api/users/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          messageEl.textContent = data.message || 'Identifiants incorrects';
+          messageEl.classList.add('error');
+          return;
+        }
+
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        window.location.href = 'cars-dashboard.html';
+
+      } else {
+        // ── REGISTER ──
+        const res  = await fetch('http://localhost:3000/api/users/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, email, password })
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          messageEl.textContent = data.message || 'Erreur lors de la création';
+          messageEl.classList.add('error');
+          return;
+        }
+
+        // Succès — on bascule sur login avec un message
+        messageEl.textContent = 'Compte créé ! Tu peux te connecter.';
+        messageEl.classList.add('success');
+        btnLoginMode.click();
+      }
+
+    } catch (err) {
+      messageEl.textContent = 'Erreur réseau';
+      messageEl.classList.add('error');
+    }
+  });
+</script>
+</body>
+</html>
