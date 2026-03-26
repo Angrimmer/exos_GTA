@@ -52,6 +52,34 @@
       z-index: 100;
     }
 
+    .tabs {
+  display: flex;
+  gap: 0;
+}
+
+.tab-btn {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.2rem;
+  letter-spacing: 0.12em;
+  padding: 0.5rem 1.5rem;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.tab-btn:hover {
+  color: var(--text);
+}
+
+.tab-btn.active {
+  color: var(--accent);
+  border-bottom: 2px solid var(--accent);
+}
+
+
     .logo {
       font-family: 'Bebas Neue', sans-serif;
       font-size: 2.8rem;
@@ -169,6 +197,19 @@
       gap: 1px;
       background: var(--border);
     }
+
+    .card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-top: 1rem;
+}
+
+.car-stock {
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+}
+
 
     /* CARD */
     .car-card {
@@ -371,6 +412,12 @@
 
 <header>
   <div class="logo">GARAGE<span>//</span>DB</div>
+
+    <nav class="tabs">
+    <button class="tab-btn active" id="tab-db">DATABASE</button>
+    <button class="tab-btn" id="tab-shop">SHOP</button>
+  </nav>
+
   <div class="header-meta">
     <span class="count" id="total-count">—</span>
     VEHICLES INDEXED
@@ -547,6 +594,90 @@ async function fetchCars() {
     document.getElementById('total-count').textContent = '0';
   }
 }
+
+// ─── TABS ─────────────────────────────────────────────────────────────────────
+
+const API_DB   = 'http://localhost:3000/api/vehicles';
+const API_SHOP = 'http://localhost:3000/api/shop';
+
+let currentMode = 'db'; // 'db' ou 'shop'
+
+// Adapter cardHTML selon le mode
+function cardHTML(c) {
+  const pct = maxSpeed > 0 ? Math.round((c.max_speed / maxSpeed) * 100) : 0;
+  const rar = (c.rarity || 'common').toLowerCase();
+  const id  = c.car_id || c.id;
+
+  const priceBlock = currentMode === 'shop'
+    ? `<div class="card-footer">
+         <div class="car-price"><span>$</span>${formatPrice(parseFloat(c.shop_price || 0))}</div>
+         <div class="car-stock" style="color: ${c.stock <= 2 ? 'var(--accent2)' : 'var(--common)'}">
+           ${c.stock > 0 ? c.stock + ' IN STOCK' : 'OUT OF STOCK'}
+         </div>
+       </div>`
+    : `<div class="car-price"><span>$</span>${formatPrice(parseFloat(c.price || 0))}</div>`;
+
+  return `
+    <a href="car-detail.html?id=${id}" class="car-card" data-rarity="${rar}">
+      <div class="card-top">
+        <div class="car-id">#${String(id).padStart(4,'0')}</div>
+        <div class="rarity-badge ${rar}">${rar}</div>
+      </div>
+      <div class="car-name">${c.name}</div>
+      <div class="car-brand">${c.brand || '—'}</div>
+      <div class="car-type">${c.type || '—'}</div>
+      <div class="speed-section">
+        <div class="speed-label">
+          <span>MAX SPEED</span>
+          <span>${c.max_speed ? c.max_speed + ' KM/H' : '—'}</span>
+        </div>
+        <div class="speed-track"><div class="speed-fill" data-pct="${pct}"></div></div>
+      </div>
+      ${priceBlock}
+    </a>`;
+}
+
+// Fetch selon le mode actif
+async function fetchCars() {
+  const API  = currentMode === 'db' ? API_DB : API_SHOP;
+  const grid = document.getElementById('cars-grid');
+  grid.innerHTML = `<div class="loading"><div class="spinner"></div>LOADING VEHICLES...</div>`;
+
+  try {
+    const res = await fetch(API);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    allCars  = Array.isArray(data) ? data : [data];
+    maxSpeed = Math.max(...allCars.map(c => c.max_speed || 0));
+    populateFilters();
+    buildStats();
+    render();
+  } catch (err) {
+    grid.innerHTML = `
+      <div class="error-state">
+        <div class="error-code">ERR</div>
+        <div class="error-msg">COULD NOT REACH API</div>
+        <div class="error-detail">${err.message}</div>
+      </div>`;
+    document.getElementById('total-count').textContent = '0';
+  }
+}
+
+// Events onglets
+document.getElementById('tab-db').addEventListener('click', () => {
+  currentMode = 'db';
+  document.getElementById('tab-db').classList.add('active');
+  document.getElementById('tab-shop').classList.remove('active');
+  fetchCars();
+});
+
+document.getElementById('tab-shop').addEventListener('click', () => {
+  currentMode = 'shop';
+  document.getElementById('tab-shop').classList.add('active');
+  document.getElementById('tab-db').classList.remove('active');
+  fetchCars();
+});
+
 
 // ─── FILTERS ─────────────────────────────────────────────────────────────────
 function populateFilters() {
