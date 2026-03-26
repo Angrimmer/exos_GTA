@@ -64,4 +64,20 @@ router.post("/", async (req, res) => {
   }
 });
 
+// GET /cars/:id -> retourne une voiture par son id
+router.get("/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const [rows] = await pool.query("SELECT * FROM cars WHERE id = ?", [id]);
+    if (rows.length === 0) {
+      return res.status(404).json({ message: "Véhicule introuvable" });
+    }
+    res.json(rows[0]);
+  } catch (error) {
+    console.error("Erreur MySQL GET /cars/:id :", error);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+
 module.exports = router;

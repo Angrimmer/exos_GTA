@@ -509,6 +509,13 @@
   font-size: 0.9rem;
 }
 
+a.car-card {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+
+
 </style>
 
 <script>
@@ -681,24 +688,25 @@ function render() {
 function cardHTML(c) {
   const pct = maxSpeed > 0 ? Math.round((c.max_speed / maxSpeed) * 100) : 0;
   const rar = (c.rarity || 'common').toLowerCase();
-  return `
-    <div class="car-card" data-rarity="${rar}">
-      <div class="card-top">
-        <div class="car-id">#${String(c.id).padStart(4,'0')}</div>
-        <div class="rarity-badge ${rar}">${rar}</div>
+return `
+  <a href="car-detail.html?id=${c.id}" class="car-card" data-rarity="${rar}">
+    <div class="card-top">
+      <div class="car-id">#${String(c.id).padStart(4,'0')}</div>
+      <div class="rarity-badge ${rar}">${rar}</div>
+    </div>
+    <div class="car-name">${c.name}</div>
+    <div class="car-brand">${c.brand || '—'}</div>
+    <div class="car-type">${c.type || '—'}</div>
+    <div class="speed-section">
+      <div class="speed-label">
+        <span>MAX SPEED</span>
+        <span>${c.max_speed ? c.max_speed + ' KM/H' : '—'}</span>
       </div>
-      <div class="car-name">${c.name}</div>
-      <div class="car-brand">${c.brand || '—'}</div>
-      <div class="car-type">${c.type || '—'}</div>
-      <div class="speed-section">
-        <div class="speed-label">
-          <span>MAX SPEED</span>
-          <span>${c.max_speed ? c.max_speed + ' KM/H' : '—'}</span>
-        </div>
-        <div class="speed-track"><div class="speed-fill" data-pct="${pct}"></div></div>
-      </div>
-      <div class="car-price"><span>$</span>${formatPrice(parseFloat(c.price || 0))}</div>
-    </div>`;
+      <div class="speed-track"><div class="speed-fill" data-pct="${pct}"></div></div>
+    </div>
+    <div class="car-price"><span>$</span>${formatPrice(parseFloat(c.price || 0))}</div>
+  </a>`;
+
 }
 
 function formatPrice(n) {
