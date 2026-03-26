@@ -1,6 +1,8 @@
 const express = require("express");
 const router = express.Router();
 const pool = require("../config/db");
+const authenticateToken = require("../middlewares/auth");
+const requireAdmin      = require("../middlewares/requireAdmin");
 
 // GET /cars -> liste toutes les voitures
 router.get("/", async (req, res) => {
@@ -78,6 +80,22 @@ router.get("/:id", async (req, res) => {
     res.status(500).json({ error: "Erreur serveur" });
   }
 });
+
+// DELETE /api/vehicles/:id
+router.delete("/:id", authenticateToken, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const [result] = await pool.query("DELETE FROM vehicles WHERE id = ?", [id]);
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Véhicule introuvable" });
+    }
+    res.json({ message: "Véhicule supprimé" });
+  } catch (error) {
+    console.error("Erreur DELETE /vehicles/:id :", error);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
 
 
 module.exports = router;

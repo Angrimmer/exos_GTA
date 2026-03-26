@@ -4,6 +4,7 @@ const pool = require("../config/db");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const authenticateToken = require("../middlewares/auth");
+const requireAdmin = require("../middlewares/requireAdmin");
 
 // POST /api/users/register
 router.post("/register", async (req, res) => {
@@ -98,5 +99,37 @@ router.get("/me", authenticateToken, async (req, res) => {
     res.status(500).json({ error: "Erreur serveur" });
   }
 });
+
+// GET /api/users -> liste tous les users (admin)
+router.get("/", authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      "SELECT id, username, email, role, created_at FROM users ORDER BY created_at DESC"
+    );
+    res.json(rows);
+  } catch (error) {
+    console.error("Erreur GET /users :", error);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// PATCH /api/users/:id/role -> changer le rôle (admin)
+router.patch("/:id/role", authenticateToken, requireAdmin, async (req, res) => {
+  const { id }   = req.params;
+  const { role } = req.body;
+
+  if (!['admin', 'user'].includes(role)) {
+    return res.status(400).json({ message: "Rôle invalide" });
+  }
+
+  try {
+    await pool.query("UPDATE users SET role = ? WHERE id = ?", [role, id]);
+    res.json({ message: "Rôle mis à jour" });
+  } catch (error) {
+    console.error("Erreur PATCH /users/:id/role :", error);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
 
 module.exports = router;

@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const pool = require("../config/db");
 const authenticateToken = require("../middlewares/auth");
+const requireAdmin = require("../middlewares/requireAdmin");
 
 // POST /api/orders -> créer une commande
 router.post("/", authenticateToken, async (req, res) => {
@@ -132,5 +133,29 @@ router.get("/:id", authenticateToken, async (req, res) => {
     res.status(500).json({ error: "Erreur serveur" });
   }
 });
+
+// GET /api/orders/all -> toutes les commandes (admin)
+router.get("/all", authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const [orders] = await pool.query(`
+      SELECT
+        orders.id,
+        orders.status,
+        orders.created_at,
+        users.username,
+        COUNT(order_items.id) AS item_count
+      FROM orders
+      JOIN users       ON orders.user_id    = users.id
+      LEFT JOIN order_items ON order_items.order_id = orders.id
+      GROUP BY orders.id
+      ORDER BY orders.created_at DESC
+    `);
+    res.json(orders);
+  } catch (error) {
+    console.error("Erreur GET /orders/all :", error);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
 
 module.exports = router;
