@@ -10,7 +10,7 @@ const usersRouter = require("./src/routes/users");
 const ordersRouter = require("./src/routes/orders");
 const garageRouter = require("./src/routes/garage");
 
-
+app.use('/api/orders/webhook', express.raw({ type: 'application/json' }));
 app.use(express.json());
 app.use(cors())
 

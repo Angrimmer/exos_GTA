@@ -346,7 +346,7 @@ async function checkout() {
   btn.disabled = true;
 
   try {
-    const res = await fetch('http://localhost:3000/api/orders', {
+    const res = await fetch('http://localhost:3000/api/orders/checkout', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -360,22 +360,15 @@ async function checkout() {
     const data = await res.json();
 
     if (!res.ok) {
-      msg.textContent = data.message || 'Erreur';
+      msg.textContent = data.error || 'Erreur';
       msg.className = 'checkout-message error';
       btn.textContent = 'CONFIRM ORDER';
       btn.disabled = false;
       return;
     }
 
-    localStorage.removeItem('cart');
-    msg.textContent = `✓ Commande #${data.order_id} validée !`;
-    msg.className = 'checkout-message success';
-    updateCartBadge();
-
-    setTimeout(() => {
-      loadGarage();
-      document.getElementById('tab-vehicles').click();
-    }, 1000);
+    // Rediriger vers Stripe Checkout
+    window.location.href = data.url;
 
   } catch (err) {
     msg.textContent = 'Erreur réseau';
@@ -384,6 +377,7 @@ async function checkout() {
     btn.disabled = false;
   }
 }
+
 
 // ── INIT ──
 updateCartBadge();

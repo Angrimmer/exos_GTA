@@ -3,6 +3,8 @@ const router = express.Router();
 const pool = require("../config/db");
 const authenticateToken = require("../middlewares/auth");
 const requireAdmin = require("../middlewares/requireAdmin");
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+
 
 // POST /api/orders -> créer une commande
 router.post("/", authenticateToken, async (req, res) => {
@@ -155,6 +157,116 @@ router.get("/all", authenticateToken, requireAdmin, async (req, res) => {
     console.error("Erreur GET /orders/all :", error);
     res.status(500).json({ error: "Erreur serveur" });
   }
+});
+
+// POST /api/orders/checkout -> créer session Stripe
+router.post("/checkout", authenticateToken, async (req, res) => {
+  const { items } = req.body;
+
+  try {
+    const lineItems = await Promise.all(items.map(async (item) => {
+      const [rows] = await pool.query(`
+        SELECT shop.price, vehicles.name
+        FROM shop
+        JOIN vehicles ON shop.car_id = vehicles.id
+        WHERE shop.car_id = ?
+      `, [item.car_id]);
+
+      if (!rows.length) throw new Error(`Véhicule ${item.car_id} introuvable`);
+
+      return {
+        price_data: {
+          currency: 'usd',
+          product_data: { name: rows[0].name },
+          unit_amount: Math.round(parseFloat(rows[0].price) * 100),
+        },
+        quantity: item.quantity,
+      };
+    }));
+
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: lineItems,
+      mode: 'payment',
+      success_url: `${process.env.FRONTEND_URL}/payment-success.html?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url:  `${process.env.FRONTEND_URL}/garage.html`,
+      metadata: {
+        user_id: String(req.user.id),
+        items:   JSON.stringify(items)
+      }
+    });
+
+    res.json({ url: session.url });
+  } catch (error) {
+    console.error("Erreur checkout :", error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/orders/webhook -> Stripe confirme le paiement
+router.post("/webhook", express.raw({ type: 'application/json' }), async (req, res) => {
+  const sig = req.headers['stripe-signature'];
+
+  let event;
+  try {
+    event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+  } catch (err) {
+    console.error("Webhook signature invalide :", err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object;
+    const user_id = parseInt(session.metadata.user_id);
+    const items   = JSON.parse(session.metadata.items);
+
+    const connection = await pool.getConnection();
+    try {
+      await connection.beginTransaction();
+
+      const [orderResult] = await connection.query(
+        "INSERT INTO orders (user_id, status) VALUES (?, 'paid')",
+        [user_id]
+      );
+      const orderId = orderResult.insertId;
+
+      for (const item of items) {
+        const { car_id, quantity } = item;
+
+        const [shopRows] = await connection.query(
+          "SELECT * FROM shop WHERE car_id = ? FOR UPDATE", [car_id]
+        );
+        if (!shopRows.length || shopRows[0].stock < quantity) {
+          throw new Error(`Stock insuffisant pour véhicule ${car_id}`);
+        }
+
+        await connection.query(
+          "UPDATE shop SET stock = stock - ? WHERE car_id = ?", [quantity, car_id]
+        );
+        await connection.query(
+          "INSERT INTO order_items (order_id, car_id, quantity, unit_price) VALUES (?, ?, ?, ?)",
+          [orderId, car_id, quantity, shopRows[0].price]
+        );
+
+        for (let i = 0; i < quantity; i++) {
+          await connection.query(
+            "INSERT INTO user_garage (user_id, car_id, order_id) VALUES (?, ?, ?)",
+            [user_id, car_id, orderId]
+          );
+        }
+      }
+
+      await connection.commit();
+      console.log(`Commande #${orderId} traitée pour user ${user_id}`);
+    } catch (err) {
+      await connection.rollback();
+      console.error("Erreur webhook :", err.message);
+    } finally {
+      connection.release();
+    }
+  }
+
+  res.json({ received: true });
 });
 
 
