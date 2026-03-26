@@ -11,16 +11,16 @@ router.get("/", async (req, res) => {
         shop.stock,
         shop.price     AS shop_price,
         shop.available,
-        cars.id        AS car_id,
-        cars.name,
-        cars.brand,
-        cars.type,
-        cars.max_speed,
-        cars.rarity
+        vehicles.id    AS car_id,
+        vehicles.name,
+        vehicles.brand,
+        vehicles.type,
+        vehicles.max_speed,
+        vehicles.rarity
       FROM shop
-      JOIN cars ON shop.car_id = cars.id
+      JOIN vehicles ON shop.car_id = vehicles.id
       WHERE shop.available = TRUE AND shop.stock > 0
-      ORDER BY cars.name ASC
+      ORDER BY vehicles.name ASC
     `);
     res.json(rows);
   } catch (error) {
@@ -39,15 +39,15 @@ router.get("/:car_id", async (req, res) => {
         shop.stock,
         shop.price     AS shop_price,
         shop.available,
-        cars.id        AS car_id,
-        cars.name,
-        cars.brand,
-        cars.type,
-        cars.max_speed,
-        cars.rarity
+        vehicles.id    AS car_id,
+        vehicles.name,
+        vehicles.brand,
+        vehicles.type,
+        vehicles.max_speed,
+        vehicles.rarity
       FROM shop
-      JOIN cars ON shop.car_id = cars.id
-      WHERE cars.id = ?
+      JOIN vehicles ON shop.car_id = vehicles.id
+      WHERE vehicles.id = ?
     `, [car_id]);
 
     if (rows.length === 0) {

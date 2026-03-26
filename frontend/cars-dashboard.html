@@ -566,12 +566,16 @@ a.car-card {
 </style>
 
 <script>
-const API = 'http://localhost:3000/api/cars/';
-let allCars = [];
-let maxSpeed = 0;
+const API_DB   = 'http://localhost:3000/api/vehicles';
+const API_SHOP = 'http://localhost:3000/api/shop';
+
+let allCars     = [];
+let maxSpeed    = 0;
+let currentMode = 'db';
 
 // ─── FETCH ────────────────────────────────────────────────────────────────────
 async function fetchCars() {
+  const API  = currentMode === 'db' ? API_DB : API_SHOP;
   const grid = document.getElementById('cars-grid');
   grid.innerHTML = `<div class="loading"><div class="spinner"></div>LOADING VEHICLES...</div>`;
 
@@ -579,7 +583,7 @@ async function fetchCars() {
     const res = await fetch(API);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    allCars = Array.isArray(data) ? data : [data];
+    allCars  = Array.isArray(data) ? data : [data];
     maxSpeed = Math.max(...allCars.map(c => c.max_speed || 0));
     populateFilters();
     buildStats();
@@ -588,21 +592,104 @@ async function fetchCars() {
     grid.innerHTML = `
       <div class="error-state">
         <div class="error-code">ERR</div>
-        <div class="error-msg">COULD NOT REACH localhost:3000/cars</div>
+        <div class="error-msg">COULD NOT REACH API</div>
         <div class="error-detail">${err.message}</div>
       </div>`;
     document.getElementById('total-count').textContent = '0';
   }
 }
 
-// ─── TABS ─────────────────────────────────────────────────────────────────────
+// ─── FILTERS ─────────────────────────────────────────────────────────────────
+function populateFilters() {
+  const types    = [...new Set(allCars.map(c => c.type).filter(Boolean))].sort();
+  const rarities = [...new Set(allCars.map(c => c.rarity).filter(Boolean))].sort();
 
-const API_DB   = 'http://localhost:3000/api/vehicles';
-const API_SHOP = 'http://localhost:3000/api/shop';
+  const typeEl = document.getElementById('filter-type');
+  typeEl.innerHTML = '<option value="">ALL TYPES</option>' +
+    types.map(t => `<option value="${t}">${t.toUpperCase()}</option>`).join('');
 
-let currentMode = 'db'; // 'db' ou 'shop'
+  const rarEl = document.getElementById('filter-rarity');
+  rarEl.innerHTML = '<option value="">ALL RARITIES</option>' +
+    rarities.map(r => `<option value="${r}">${r.toUpperCase()}</option>`).join('');
+}
 
-// Adapter cardHTML selon le mode
+// ─── STATS ────────────────────────────────────────────────────────────────────
+function buildStats() {
+  document.getElementById('total-count').textContent = allCars.length;
+
+  const avgPrice = allCars.reduce((a, c) => {
+    const p = currentMode === 'shop' ? c.shop_price : c.price;
+    return a + parseFloat(p || 0);
+  }, 0) / allCars.length;
+
+  const topSpeed  = Math.max(...allCars.map(c => c.max_speed || 0));
+  const brands    = new Set(allCars.map(c => c.brand)).size;
+  const legendary = allCars.filter(c => c.rarity === 'legendary').length;
+
+  const stats = [
+    { label: 'Avg Price', value: '$' + formatPrice(avgPrice) },
+    { label: 'Top Speed', value: topSpeed + ' km/h' },
+    { label: 'Brands',    value: brands },
+    { label: 'Legendary', value: legendary },
+  ];
+
+  const bar = document.getElementById('stats-bar');
+  bar.innerHTML = stats.map(s => `
+    <div class="stat-item">
+      <div class="stat-label">${s.label}</div>
+      <div class="stat-value">${s.value}</div>
+    </div>`).join('');
+
+  requestAnimationFrame(() => {
+    bar.querySelectorAll('.stat-item').forEach((el, i) => {
+      setTimeout(() => el.classList.add('visible'), i * 80);
+    });
+  });
+}
+
+// ─── RENDER ───────────────────────────────────────────────────────────────────
+function render() {
+  const search = document.getElementById('search').value.toLowerCase();
+  const type   = document.getElementById('filter-type').value;
+  const rarity = document.getElementById('filter-rarity').value;
+  const sort   = document.getElementById('sort-by').value;
+
+  let cars = allCars.filter(c => {
+    if (search && !`${c.name} ${c.brand}`.toLowerCase().includes(search)) return false;
+    if (type   && c.type   !== type)   return false;
+    if (rarity && c.rarity !== rarity) return false;
+    return true;
+  });
+
+  cars.sort((a, b) => {
+    if (sort === 'name')       return a.name.localeCompare(b.name);
+    if (sort === 'price_asc')  return parseFloat(a.shop_price || a.price) - parseFloat(b.shop_price || b.price);
+    if (sort === 'price_desc') return parseFloat(b.shop_price || b.price) - parseFloat(a.shop_price || a.price);
+    if (sort === 'speed')      return (b.max_speed || 0) - (a.max_speed || 0);
+    return (a.car_id || a.id) - (b.car_id || b.id);
+  });
+
+  const grid = document.getElementById('cars-grid');
+
+  if (!cars.length) {
+    grid.innerHTML = `<div class="empty-state">NO VEHICLES MATCH YOUR FILTERS</div>`;
+    return;
+  }
+
+  grid.innerHTML = cars.map(c => cardHTML(c)).join('');
+
+  requestAnimationFrame(() => {
+    grid.querySelectorAll('.car-card').forEach((el, i) => {
+      setTimeout(() => {
+        el.classList.add('visible');
+        const fill = el.querySelector('.speed-fill');
+        if (fill) fill.style.width = fill.dataset.pct + '%';
+      }, Math.min(i * 40, 400));
+    });
+  });
+}
+
+// ─── CARD ─────────────────────────────────────────────────────────────────────
 function cardHTML(c) {
   const pct = maxSpeed > 0 ? Math.round((c.max_speed / maxSpeed) * 100) : 0;
   const rar = (c.rarity || 'common').toLowerCase();
@@ -637,214 +724,54 @@ function cardHTML(c) {
     </a>`;
 }
 
-// Fetch selon le mode actif
-async function fetchCars() {
-  const API  = currentMode === 'db' ? API_DB : API_SHOP;
-  const grid = document.getElementById('cars-grid');
-  grid.innerHTML = `<div class="loading"><div class="spinner"></div>LOADING VEHICLES...</div>`;
-
-  try {
-    const res = await fetch(API);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    allCars  = Array.isArray(data) ? data : [data];
-    maxSpeed = Math.max(...allCars.map(c => c.max_speed || 0));
-    populateFilters();
-    buildStats();
-    render();
-  } catch (err) {
-    grid.innerHTML = `
-      <div class="error-state">
-        <div class="error-code">ERR</div>
-        <div class="error-msg">COULD NOT REACH API</div>
-        <div class="error-detail">${err.message}</div>
-      </div>`;
-    document.getElementById('total-count').textContent = '0';
-  }
-}
-
-// Events onglets
-document.getElementById('tab-db').addEventListener('click', () => {
-  currentMode = 'db';
-  document.getElementById('tab-db').classList.add('active');
-  document.getElementById('tab-shop').classList.remove('active');
-  fetchCars();
-});
-
-document.getElementById('tab-shop').addEventListener('click', () => {
-  currentMode = 'shop';
-  document.getElementById('tab-shop').classList.add('active');
-  document.getElementById('tab-db').classList.remove('active');
-  fetchCars();
-});
-
-
-// ─── FILTERS ─────────────────────────────────────────────────────────────────
-function populateFilters() {
-  const types = [...new Set(allCars.map(c => c.type).filter(Boolean))].sort();
-  const rarities = [...new Set(allCars.map(c => c.rarity).filter(Boolean))].sort();
-
-  const typeEl = document.getElementById('filter-type');
-  typeEl.innerHTML = '<option value="">ALL TYPES</option>' +
-    types.map(t => `<option value="${t}">${t.toUpperCase()}</option>`).join('');
-
-  const rarEl = document.getElementById('filter-rarity');
-  rarEl.innerHTML = '<option value="">ALL RARITIES</option>' +
-    rarities.map(r => `<option value="${r}">${r.toUpperCase()}</option>`).join('');
-}
-
-// ─── STATS ────────────────────────────────────────────────────────────────────
-function buildStats() {
-  document.getElementById('total-count').textContent = allCars.length;
-
-  const avgPrice = allCars.reduce((a, c) => a + parseFloat(c.price || 0), 0) / allCars.length;
-  const topSpeed = Math.max(...allCars.map(c => c.max_speed || 0));
-  const brands = new Set(allCars.map(c => c.brand)).size;
-  const legendary = allCars.filter(c => c.rarity === 'legendary').length;
-
-  const stats = [
-    { label: 'Avg Price', value: '$' + formatPrice(avgPrice) },
-    { label: 'Top Speed', value: topSpeed + ' km/h' },
-    { label: 'Brands', value: brands },
-    { label: 'Legendary', value: legendary },
-  ];
-
-  const bar = document.getElementById('stats-bar');
-  bar.innerHTML = stats.map(s => `
-    <div class="stat-item">
-      <div class="stat-label">${s.label}</div>
-      <div class="stat-value">${s.value}</div>
-    </div>`).join('');
-
-  // stagger animate in
-  requestAnimationFrame(() => {
-    bar.querySelectorAll('.stat-item').forEach((el, i) => {
-      setTimeout(() => el.classList.add('visible'), i * 80);
-    });
-  });
-}
-
-const form = document.getElementById("add-car-form");
-  const message = document.getElementById("add-car-message");
-
-  form.addEventListener("submit", async (event) => {
-    event.preventDefault();
-
-    const formData = new FormData(form);
-    const body = {
-      name: formData.get("name"),
-      brand: formData.get("brand"),
-      type: formData.get("type") || "Standard",
-      max_speed: formData.get("max_speed") ? Number(formData.get("max_speed")) : null,
-      price: formData.get("price") ? Number(formData.get("price")) : null,
-      rarity: formData.get("rarity") || null
-    };
-
-    try {
-      const response = await fetch("http://localhost:3000/api/cars", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(body)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        message.textContent = "Erreur: " + (errorData.message || "Impossible d'ajouter la voiture");
-        message.style.color = "red";
-        return;
-      }
-
-      const newCar = await response.json();
-      message.textContent = "Voiture ajoutée (id " + newCar.id + ")";
-      message.style.color = "green";
-
-      form.reset();
-
-      // Optionnel : rafraîchir la liste des voitures si tu as déjà un fetch pour le tableau
-      if (typeof loadCars === "function") {
-        loadCars();
-      }
-    } catch (error) {
-      console.error(error);
-      message.textContent = "Erreur réseau";
-      message.style.color = "red";
-    }
-  });
-
-// ─── RENDER ───────────────────────────────────────────────────────────────────
-function render() {
-  const search = document.getElementById('search').value.toLowerCase();
-  const type = document.getElementById('filter-type').value;
-  const rarity = document.getElementById('filter-rarity').value;
-  const sort = document.getElementById('sort-by').value;
-
-  let cars = allCars.filter(c => {
-    if (search && !`${c.name} ${c.brand}`.toLowerCase().includes(search)) return false;
-    if (type && c.type !== type) return false;
-    if (rarity && c.rarity !== rarity) return false;
-    return true;
-  });
-
-  cars.sort((a, b) => {
-    if (sort === 'name') return a.name.localeCompare(b.name);
-    if (sort === 'price_asc') return parseFloat(a.price) - parseFloat(b.price);
-    if (sort === 'price_desc') return parseFloat(b.price) - parseFloat(a.price);
-    if (sort === 'speed') return (b.max_speed || 0) - (a.max_speed || 0);
-    return a.id - b.id;
-  });
-
-  const grid = document.getElementById('cars-grid');
-
-  if (!cars.length) {
-    grid.innerHTML = `<div class="empty-state">NO VEHICLES MATCH YOUR FILTERS</div>`;
-    return;
-  }
-
-  grid.innerHTML = cars.map(c => cardHTML(c)).join('');
-
-  // animate cards in
-  requestAnimationFrame(() => {
-    grid.querySelectorAll('.car-card').forEach((el, i) => {
-      setTimeout(() => {
-        el.classList.add('visible');
-        const fill = el.querySelector('.speed-fill');
-        if (fill) fill.style.width = fill.dataset.pct + '%';
-      }, Math.min(i * 40, 400));
-    });
-  });
-}
-
-function cardHTML(c) {
-  const pct = maxSpeed > 0 ? Math.round((c.max_speed / maxSpeed) * 100) : 0;
-  const rar = (c.rarity || 'common').toLowerCase();
-return `
-  <a href="car-detail.html?id=${c.id}" class="car-card" data-rarity="${rar}">
-    <div class="card-top">
-      <div class="car-id">#${String(c.id).padStart(4,'0')}</div>
-      <div class="rarity-badge ${rar}">${rar}</div>
-    </div>
-    <div class="car-name">${c.name}</div>
-    <div class="car-brand">${c.brand || '—'}</div>
-    <div class="car-type">${c.type || '—'}</div>
-    <div class="speed-section">
-      <div class="speed-label">
-        <span>MAX SPEED</span>
-        <span>${c.max_speed ? c.max_speed + ' KM/H' : '—'}</span>
-      </div>
-      <div class="speed-track"><div class="speed-fill" data-pct="${pct}"></div></div>
-    </div>
-    <div class="car-price"><span>$</span>${formatPrice(parseFloat(c.price || 0))}</div>
-  </a>`;
-
-}
-
 function formatPrice(n) {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + 'M';
-  if (n >= 1_000) return (n / 1_000).toFixed(0) + 'K';
+  if (n >= 1_000)     return (n / 1_000).toFixed(0) + 'K';
   return n.toFixed(0);
 }
+
+// ─── ADD CAR FORM ─────────────────────────────────────────────────────────────
+const form    = document.getElementById("add-car-form");
+const message = document.getElementById("add-car-message");
+
+form.addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  const formData = new FormData(form);
+  const body = {
+    name:      formData.get("name"),
+    brand:     formData.get("brand"),
+    type:      formData.get("type") || "Standard",
+    max_speed: formData.get("max_speed") ? Number(formData.get("max_speed")) : null,
+    price:     formData.get("price")     ? Number(formData.get("price"))     : null,
+    rarity:    formData.get("rarity")    || null
+  };
+
+  try {
+    const response = await fetch("http://localhost:3000/api/cars", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      message.textContent = "Erreur: " + (errorData.message || "Impossible d'ajouter la voiture");
+      message.style.color = "red";
+      return;
+    }
+
+    const newCar = await response.json();
+    message.textContent = `Voiture ajoutée (id ${newCar.id})`;
+    message.style.color = "green";
+    form.reset();
+    fetchCars();
+  } catch (error) {
+    console.error(error);
+    message.textContent = "Erreur réseau";
+    message.style.color = "red";
+  }
+});
 
 // ─── EVENTS ───────────────────────────────────────────────────────────────────
 document.getElementById('search').addEventListener('input', render);
@@ -864,8 +791,22 @@ document.getElementById('btn-list').addEventListener('click', () => {
   document.getElementById('btn-grid').classList.remove('active');
 });
 
-// ─── INIT ────────────────────────────────────────────────────────────────────
+document.getElementById('tab-db').addEventListener('click', () => {
+  currentMode = 'db';
+  document.getElementById('tab-db').classList.add('active');
+  document.getElementById('tab-shop').classList.remove('active');
+  fetchCars();
+});
+document.getElementById('tab-shop').addEventListener('click', () => {
+  currentMode = 'shop';
+  document.getElementById('tab-shop').classList.add('active');
+  document.getElementById('tab-db').classList.remove('active');
+  fetchCars();
+});
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
 fetchCars();
+
 </script>
 </body>
 </html>
