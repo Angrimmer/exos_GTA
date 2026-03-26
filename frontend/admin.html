@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ADMIN // GARAGE DB</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a0a0a; --surface: #111111; --border: #222222;
+      --accent: #e8ff47; --accent2: #ff4757; --text: #f0f0f0;
+      --muted: #555; --legendary: #f59e0b; --rare: #6366f1; --common: #10b981;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'DM Mono', monospace; min-height: 100vh; display: flex; flex-direction: column; }
+    body::before { content: ''; position: fixed; inset: 0; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E"); pointer-events: none; z-index: 9999; opacity: 0.4; }
+    header { border-bottom: 1px solid var(--border); padding: 1.5rem 3rem; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; background: var(--bg); z-index: 100; }
+    .logo { font-family: 'Bebas Neue', sans-serif; font-size: 2rem; letter-spacing: 0.15em; }
+    .logo span { color: var(--accent); }
+    .header-center { font-size: 0.65rem; letter-spacing: 0.2em; color: var(--muted); text-transform: uppercase; }
+    .header-center strong { color: var(--accent2); font-weight: normal; }
+    .header-actions { display: flex; align-items: center; gap: 1rem; }
+    .header-user { font-size: 0.65rem; letter-spacing: 0.1em; color: var(--muted); }
+    .btn-back, .btn-logout { font-size: 0.7rem; letter-spacing: 0.1em; color: var(--muted); text-decoration: none; border: 1px solid var(--border); padding: 0.4rem 0.9rem; cursor: pointer; background: transparent; font-family: 'DM Mono', monospace; transition: color 0.2s, border-color 0.2s; }
+    .btn-back:hover { color: var(--accent); border-color: var(--accent); }
+    .btn-logout { color: var(--accent2); border-color: var(--accent2); }
+    .btn-logout:hover { background: var(--accent2); color: #000; }
+    .admin-layout { display: flex; flex: 1; }
+    .sidebar { width: 200px; min-width: 200px; border-right: 1px solid var(--border); padding: 2rem 0; position: sticky; top: 61px; height: calc(100vh - 61px); }
+    .sidebar-label { font-size: 0.55rem; letter-spacing: 0.2em; color: var(--muted); text-transform: uppercase; padding: 0 1.5rem; margin-bottom: 0.5rem; }
+    .nav-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1.5rem; font-size: 0.75rem; letter-spacing: 0.1em; color: var(--muted); cursor: pointer; border-left: 2px solid transparent; transition: color 0.2s, border-color 0.2s, background 0.2s; text-transform: uppercase; user-select: none; }
+    .nav-item:hover { color: var(--text); background: rgba(255,255,255,0.02); }
+    .nav-item.active { color: var(--accent); border-left-color: var(--accent); background: rgba(232,255,71,0.04); }
+    .nav-icon { font-size: 1rem; }
+    .admin-main { flex: 1; padding: 2.5rem 3rem; overflow-y: auto; }
+    .section { display: none; }
+    .section.active { display: block; }
+    .section-title { font-family: 'Bebas Neue', sans-serif; font-size: 2rem; letter-spacing: 0.1em; margin-bottom: 0.25rem; }
+    .section-title span { color: var(--accent); }
+    .section-sub { font-size: 0.65rem; color: var(--muted); letter-spacing: 0.1em; margin-bottom: 2rem; }
+    .admin-form { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; padding: 1.5rem; border: 1px solid var(--border); margin-bottom: 2.5rem; }
+    .form-field { display: flex; flex-direction: column; gap: 0.4rem; }
+    .form-field label { font-size: 0.6rem; letter-spacing: 0.15em; color: var(--muted); text-transform: uppercase; }
+    .form-field input, .form-field select { background: var(--surface); border: 1px solid var(--border); color: var(--text); font-family: 'DM Mono', monospace; font-size: 0.8rem; padding: 0.6rem 0.8rem; outline: none; transition: border-color 0.2s; }
+    .form-field input:focus, .form-field select:focus { border-color: var(--accent); }
+    .form-actions { grid-column: 1 / -1; display: flex; align-items: center; gap: 1rem; }
+    .btn-primary { background: var(--accent); color: #000; border: none; font-family: 'Bebas Neue', sans-serif; font-size: 1rem; letter-spacing: 0.12em; padding: 0.6rem 1.5rem; cursor: pointer; transition: background 0.15s; }
+    .btn-primary:hover { background: #d4eb3a; }
+    .btn-danger { background: transparent; color: var(--accent2); border: 1px solid var(--accent2); font-family: 'DM Mono', monospace; font-size: 0.7rem; letter-spacing: 0.08em; padding: 0.35rem 0.8rem; cursor: pointer; transition: background 0.15s; }
+    .btn-danger:hover { background: var(--accent2); color: #000; }
+    .btn-sm { background: transparent; border: 1px solid var(--border); color: var(--muted); font-family: 'DM Mono', monospace; font-size: 0.65rem; letter-spacing: 0.08em; padding: 0.3rem 0.7rem; cursor: pointer; transition: color 0.2s, border-color 0.2s; }
+    .btn-sm:hover { color: var(--accent); border-color: var(--accent); }
+    .form-message { font-size: 0.7rem; letter-spacing: 0.08em; }
+    .form-message.success { color: var(--common); }
+    .form-message.error { color: var(--accent2); }
+    .admin-table-wrap { border: 1px solid var(--border); overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+    thead tr { border-bottom: 1px solid var(--border); background: var(--surface); }
+    th { padding: 0.75rem 1rem; text-align: left; font-size: 0.6rem; letter-spacing: 0.15em; color: var(--muted); text-transform: uppercase; font-weight: normal; }
+    tbody tr { border-bottom: 1px solid var(--border); transition: background 0.15s; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: rgba(255,255,255,0.02); }
+    td { padding: 0.75rem 1rem; letter-spacing: 0.04em; }
+    .td-muted { color: var(--muted); }
+    .badge { font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; padding: 0.15rem 0.5rem; }
+    .badge.legendary { background: rgba(245,158,11,0.15); color: var(--legendary); border: 1px solid rgba(245,158,11,0.3); }
+    .badge.epic      { background: rgba(139,92,246,0.15);  color: #a78bfa;          border: 1px solid rgba(139,92,246,0.3); }
+    .badge.rare      { background: rgba(99,102,241,0.15);  color: #818cf8;          border: 1px solid rgba(99,102,241,0.3); }
+    .badge.uncommon  { background: rgba(56,189,248,0.15);  color: #7dd3fc;          border: 1px solid rgba(56,189,248,0.3); }
+    .badge.common    { background: rgba(16,185,129,0.15);  color: #34d399;          border: 1px solid rgba(16,185,129,0.3); }
+    .badge.admin     { background: rgba(255,71,87,0.15);   color: var(--accent2);   border: 1px solid rgba(255,71,87,0.3); }
+    .badge.user      { background: rgba(85,85,85,0.15);    color: var(--muted);     border: 1px solid rgba(85,85,85,0.3); }
+    .badge.paid      { background: rgba(16,185,129,0.15);  color: #34d399;          border: 1px solid rgba(16,185,129,0.3); }
+    .badge.pending   { background: rgba(245,158,11,0.15);  color: var(--legendary); border: 1px solid rgba(245,158,11,0.3); }
+    .badge.cancelled { background: rgba(255,71,87,0.15);   color: var(--accent2);   border: 1px solid rgba(255,71,87,0.3); }
+    .stock-input { background: var(--surface); border: 1px solid var(--border); color: var(--text); font-family: 'DM Mono', monospace; font-size: 0.75rem; padding: 0.3rem 0.5rem; width: 70px; outline: none; }
+    .stock-input:focus { border-color: var(--accent); }
+    .available-toggle { cursor: pointer; font-size: 0.7rem; letter-spacing: 0.08em; padding: 0.2rem 0.6rem; border: 1px solid; transition: all 0.15s; background: transparent; font-family: 'DM Mono', monospace; }
+    .available-toggle.on  { color: var(--common);  border-color: var(--common); }
+    .available-toggle.off { color: var(--accent2); border-color: var(--accent2); }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">GARAGE<span>//</span>DB</div>
+  <div class="header-center">PANEL <strong>ADMIN</strong></div>
+  <div class="header-actions">
+    <span class="header-user" id="header-user"></span>
+    <a href="cars-dashboard.html" class="btn-back">← DASHBOARD</a>
+    <button class="btn-logout" id="btn-logout">LOGOUT</button>
+  </div>
+</header>
+
+<div class="admin-layout">
+  <nav class="sidebar">
+    <div class="sidebar-label">Navigation</div>
+    <div class="nav-item active" data-section="vehicles"><span class="nav-icon">🚗</span>Vehicles</div>
+    <div class="nav-item" data-section="shop"><span class="nav-icon">🏪</span>Shop</div>
+    <div class="nav-item" data-section="users"><span class="nav-icon">👤</span>Users</div>
+    <div class="nav-item" data-section="orders"><span class="nav-icon">📋</span>Orders</div>
+  </nav>
+
+  <main class="admin-main">
+
+    <!-- VEHICLES -->
+    <section class="section active" id="section-vehicles">
+      <div class="section-title">VEHICLES<span>//</span>MANAGE</div>
+      <div class="section-sub">Ajouter et gérer les véhicules de la base</div>
+      <form class="admin-form" id="form-add-vehicle">
+        <div class="form-field">
+          <label>Nom *</label>
+          <input type="text" name="name" required />
+        </div>
+        <div class="form-field">
+          <label>Marque *</label>
+          <input type="text" name="brand" required />
+        </div>
+        <div class="form-field">
+          <label>Catégorie *</label>
+          <select name="category">
+            <option value="car">Car</option>
+            <option value="boat">Boat</option>
+            <option value="plane">Plane</option>
+            <option value="truck">Truck</option>
+            <option value="bike">Bike</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label>Type *</label>
+          <input type="text" name="type" placeholder="supercar, muscle…" required />
+        </div>
+        <div class="form-field">
+          <label>Rareté</label>
+          <select name="rarity">
+            <option value="common">Common</option>
+            <option value="uncommon">Uncommon</option>
+            <option value="rare">Rare</option>
+            <option value="epic">Epic</option>
+            <option value="legendary">Legendary</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label>Prix ($)</label>
+          <input type="number" name="price" min="0" />
+        </div>
+        <div class="form-field">
+          <label>Vitesse max (km/h)</label>
+          <input type="number" name="max_speed" min="0" />
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn-primary">+ ADD VEHICLE</button>
+          <span class="form-message" id="msg-add-vehicle"></span>
+        </div>
+      </form>
+      
+
+
+      <div class="admin-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th><th>Name</th><th>Brand</th><th>Category</th>
+              <th>Type</th><th>Rarity</th><th>Price</th><th>Speed</th><th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-vehicles"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- SHOP -->
+    <section class="section" id="section-shop">
+      <div class="section-title">SHOP<span>//</span>STOCK</div>
+      <div class="section-sub">Gérer le stock et la disponibilité des véhicules</div>
+      <div class="admin-table-wrap">
+        <table>
+          <thead>
+            <tr><th>#</th><th>Vehicle</th><th>Brand</th><th>Stock</th><th>Price</th><th>Available</th><th>Action</th></tr>
+          </thead>
+          <tbody id="tbody-shop"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- USERS -->
+    <section class="section" id="section-users">
+      <div class="section-title">USERS<span>//</span>LIST</div>
+      <div class="section-sub">Liste des comptes utilisateurs</div>
+      <div class="admin-table-wrap">
+        <table>
+          <thead>
+            <tr><th>#</th><th>Username</th><th>Email</th><th>Role</th><th>Created</th><th>Action</th></tr>
+          </thead>
+          <tbody id="tbody-users"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ORDERS -->
+    <section class="section" id="section-orders">
+      <div class="section-title">ORDERS<span>//</span>HISTORY</div>
+      <div class="section-sub">Historique de toutes les commandes</div>
+      <div class="admin-table-wrap">
+        <table>
+          <thead>
+            <tr><th>#</th><th>User</th><th>Status</th><th>Date</th><th>Items</th></tr>
+          </thead>
+          <tbody id="tbody-orders"></tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+</div>
+<script>
+const API = 'http://localhost:3000/api';
+
+// ── AUTH CHECK ────────────────────────────────────────────────────────────────
+const token    = localStorage.getItem('token');
+const userJson = localStorage.getItem('user');
+
+if (!token || !userJson) {
+  window.location.href = 'login.html';
+} else {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    if (payload.role !== 'admin') window.location.href = 'cars-dashboard.html';
+    if (payload.exp * 1000 < Date.now()) {
+      localStorage.clear();
+      window.location.href = 'login.html';
+    }
+    const user = JSON.parse(userJson);
+    document.getElementById('header-user').textContent = user.username.toUpperCase();
+  } catch(e) {
+    localStorage.clear();
+    window.location.href = 'login.html';
+  }
+}
+
+const headers = {
+  'Content-Type': 'application/json',
+  'Authorization': `Bearer ${token}`
+};
+
+// ── NAV ───────────────────────────────────────────────────────────────────────
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', () => {
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    item.classList.add('active');
+    document.getElementById('section-' + item.dataset.section).classList.add('active');
+    loadSection(item.dataset.section);
+  });
+});
+
+function loadSection(name) {
+  if (name === 'vehicles') loadVehicles();
+  if (name === 'shop')     loadShop();
+  if (name === 'users')    loadUsers();
+  if (name === 'orders')   loadOrders();
+}
+
+// ── LOGOUT ────────────────────────────────────────────────────────────────────
+document.getElementById('btn-logout').addEventListener('click', () => {
+  localStorage.clear();
+  window.location.href = 'login.html';
+});
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+function formatPrice(n) {
+  n = parseFloat(n);
+  if (n >= 1_000_000) return '$' + (n / 1_000_000).toFixed(2) + 'M';
+  if (n >= 1_000)     return '$' + (n / 1_000).toFixed(0) + 'K';
+  return '$' + n.toFixed(0);
+}
+
+// ── VEHICLES ──────────────────────────────────────────────────────────────────
+async function loadVehicles() {
+  const res  = await fetch(`${API}/vehicles`, { headers });
+  const data = await res.json();
+  const tbody = document.getElementById('tbody-vehicles');
+
+  tbody.innerHTML = data.map(v => `
+    <tr>
+      <td class="td-muted">#${String(v.id).padStart(4,'0')}</td>
+      <td>${v.name}</td>
+      <td class="td-muted">${v.brand}</td>
+      <td class="td-muted">${v.category}</td>
+      <td class="td-muted">${v.type}</td>
+      <td><span class="badge ${v.rarity}">${v.rarity || '—'}</span></td>
+      <td>${formatPrice(v.price)}</td>
+      <td class="td-muted">${v.max_speed ? v.max_speed + ' km/h' : '—'}</td>
+      <td>
+        <button class="btn-danger" onclick="deleteVehicle(${v.id})">DELETE</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function deleteVehicle(id) {
+  if (!confirm('Supprimer ce véhicule ?')) return;
+  await fetch(`${API}/vehicles/${id}`, { method: 'DELETE', headers });
+  loadVehicles();
+}
+
+document.getElementById('form-add-vehicle').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd  = new FormData(e.target);
+  const msg = document.getElementById('msg-add-vehicle');
+  const body = {
+    name:      fd.get('name'),
+    brand:     fd.get('brand'),
+    category:  fd.get('category'),
+    type:      fd.get('type'),
+    rarity:    fd.get('rarity'),
+    price:     fd.get('price')     ? Number(fd.get('price'))     : 0,
+    max_speed: fd.get('max_speed') ? Number(fd.get('max_speed')) : null,
+  };
+
+  const res  = await fetch(`${API}/vehicles`, { method: 'POST', headers, body: JSON.stringify(body) });
+  const data = await res.json();
+
+  if (!res.ok) {
+    msg.textContent = data.message || 'Erreur';
+    msg.className = 'form-message error';
+    return;
+  }
+  msg.textContent = `${data.name} ajouté (id ${data.id})`;
+  msg.className = 'form-message success';
+  e.target.reset();
+  loadVehicles();
+});
+
+// ── SHOP ──────────────────────────────────────────────────────────────────────
+async function loadShop() {
+  const res  = await fetch(`${API}/shop`, { headers });
+  const data = await res.json();
+  const tbody = document.getElementById('tbody-shop');
+
+  tbody.innerHTML = data.map(s => `
+    <tr>
+      <td class="td-muted">#${String(s.car_id).padStart(4,'0')}</td>
+      <td>${s.name}</td>
+      <td class="td-muted">${s.brand}</td>
+      <td>
+        <input class="stock-input" type="number" min="0" value="${s.stock}" id="stock-${s.shop_id}" />
+      </td>
+      <td>${formatPrice(s.shop_price)}</td>
+      <td>
+        <button class="available-toggle ${s.available ? 'on' : 'off'}"
+          onclick="toggleAvailable(${s.shop_id}, ${s.available}, this)">
+          ${s.available ? 'ONLINE' : 'OFFLINE'}
+        </button>
+      </td>
+      <td>
+        <button class="btn-sm" onclick="updateStock(${s.shop_id})">SAVE</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function updateStock(shopId) {
+  const stock = document.getElementById(`stock-${shopId}`).value;
+  await fetch(`${API}/shop/${shopId}/stock`, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify({ stock: Number(stock) })
+  });
+}
+
+async function toggleAvailable(shopId, current, btn) {
+  const newVal = !current;
+  await fetch(`${API}/shop/${shopId}/stock`, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify({ available: newVal })
+  });
+  btn.textContent = newVal ? 'ONLINE' : 'OFFLINE';
+  btn.className = `available-toggle ${newVal ? 'on' : 'off'}`;
+  btn.setAttribute('onclick', `toggleAvailable(${shopId}, ${newVal}, this)`);
+}
+
+// ── USERS ─────────────────────────────────────────────────────────────────────
+async function loadUsers() {
+  const res  = await fetch(`${API}/users`, { headers });
+  const data = await res.json();
+  const tbody = document.getElementById('tbody-users');
+
+  tbody.innerHTML = data.map(u => `
+    <tr>
+      <td class="td-muted">#${String(u.id).padStart(4,'0')}</td>
+      <td>${u.username}</td>
+      <td class="td-muted">${u.email}</td>
+      <td><span class="badge ${u.role}">${u.role}</span></td>
+      <td class="td-muted">${new Date(u.created_at).toLocaleDateString()}</td>
+      <td>
+        <button class="btn-sm" onclick="toggleRole(${u.id}, '${u.role}')">
+          ${u.role === 'admin' ? '→ USER' : '→ ADMIN'}
+        </button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function toggleRole(id, currentRole) {
+  const newRole = currentRole === 'admin' ? 'user' : 'admin';
+  if (!confirm(`Passer ce compte en ${newRole} ?`)) return;
+  await fetch(`${API}/users/${id}/role`, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify({ role: newRole })
+  });
+  loadUsers();
+}
+
+// ── ORDERS ────────────────────────────────────────────────────────────────────
+async function loadOrders() {
+  const res  = await fetch(`${API}/orders/all`, { headers });
+  const data = await res.json();
+  const tbody = document.getElementById('tbody-orders');
+
+  tbody.innerHTML = data.map(o => `
+    <tr>
+      <td class="td-muted">#${String(o.id).padStart(4,'0')}</td>
+      <td>${o.username || o.user_id}</td>
+      <td><span class="badge ${o.status}">${o.status}</span></td>
+      <td class="td-muted">${new Date(o.created_at).toLocaleDateString()}</td>
+      <td class="td-muted">${o.item_count} véhicule(s)</td>
+    </tr>
+  `).join('');
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+loadVehicles();
+</script>
+</body>
+</html>
