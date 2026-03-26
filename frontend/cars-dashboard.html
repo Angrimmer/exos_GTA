@@ -728,6 +728,18 @@ function checkAdminAccess() {
     // Afficher le nom de l'user connecté
     document.getElementById('header-user').textContent = user.username.toUpperCase();
 
+    // Lien MY GARAGE pour tout user connecté
+    const garageLink = document.createElement('a');
+    garageLink.href        = 'garage.html';
+    garageLink.className   = 'btn-auth';
+    garageLink.textContent = 'MY GARAGE';
+    garageLink.style.color       = 'var(--common)';
+    garageLink.style.borderColor = 'var(--common)';
+    document.getElementById('header-right').insertBefore(
+      garageLink,
+      document.getElementById('btn-auth')
+    );
+
     // Transformer LOGIN en LOGOUT
     const btn = document.getElementById('btn-auth');
     btn.textContent = 'LOGOUT';
@@ -742,8 +754,8 @@ function checkAdminAccess() {
     // Si admin : ajouter le lien ADMIN dans le header
     if (payload.role === 'admin') {
       const adminLink = document.createElement('a');
-      adminLink.href      = 'admin.html';
-      adminLink.className = 'btn-auth';
+      adminLink.href        = 'admin.html';
+      adminLink.className   = 'btn-auth';
       adminLink.textContent = 'ADMIN';
       adminLink.style.color       = 'var(--accent2)';
       adminLink.style.borderColor = 'var(--accent2)';
@@ -758,6 +770,7 @@ function checkAdminAccess() {
     localStorage.removeItem('user');
   }
 }
+
 
 
 

@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MY GARAGE // GARAGE DB</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0a; --surface: #111111; --border: #222222;
+      --accent: #e8ff47; --accent2: #ff4757; --text: #f0f0f0;
+      --muted: #555; --legendary: #f59e0b; --rare: #6366f1; --common: #10b981;
+    }
+
+    body { background: var(--bg); color: var(--text); font-family: 'DM Mono', monospace; min-height: 100vh; }
+
+    body::before {
+      content: ''; position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 9999; opacity: 0.4;
+    }
+
+    header {
+      border-bottom: 1px solid var(--border);
+      padding: 2rem 3rem;
+      display: flex; align-items: flex-end; justify-content: space-between;
+      position: sticky; top: 0; background: var(--bg); z-index: 100;
+    }
+
+    .logo { font-family: 'Bebas Neue', sans-serif; font-size: 2.8rem; letter-spacing: 0.15em; line-height: 1; }
+    .logo span { color: var(--accent); }
+
+    .header-right { display: flex; align-items: center; gap: 1rem; }
+
+    .back-btn {
+      font-size: 0.75rem; letter-spacing: 0.12em; color: var(--muted);
+      text-decoration: none; border: 1px solid var(--border); padding: 0.5rem 1rem;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .back-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+    .header-meta { font-size: 0.7rem; color: var(--muted); text-align: right; letter-spacing: 0.1em; }
+    .header-meta .count { font-size: 1.6rem; font-family: 'Bebas Neue', sans-serif; color: var(--text); display: block; }
+
+    /* STATS BAR */
+    .stats-bar { display: flex; border-bottom: 1px solid var(--border); }
+    .stat-item { flex: 1; padding: 1rem 2rem; border-right: 1px solid var(--border); opacity: 0; transform: translateY(10px); transition: opacity 0.4s, transform 0.4s; }
+    .stat-item:last-child { border-right: none; }
+    .stat-item.visible { opacity: 1; transform: none; }
+    .stat-label { font-size: 0.6rem; letter-spacing: 0.15em; color: var(--muted); text-transform: uppercase; }
+    .stat-value { font-family: 'Bebas Neue', sans-serif; font-size: 2rem; color: var(--accent); }
+
+    /* GRID */
+    .grid-wrap { padding: 2rem 3rem; }
+    .garage-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1px;
+      background: var(--border);
+    }
+
+    /* CARD */
+    .car-card {
+      background: var(--surface);
+      padding: 1.5rem;
+      position: relative;
+      overflow: hidden;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.35s ease, transform 0.35s ease, background 0.2s;
+      text-decoration: none;
+      color: inherit;
+      display: block;
+    }
+    .car-card.visible { opacity: 1; transform: none; }
+    .car-card:hover { background: #181818; }
+    .car-card::after {
+      content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    }
+    .car-card[data-rarity="legendary"]::after { background: var(--legendary); }
+    .car-card[data-rarity="epic"]::after      { background: #a78bfa; }
+    .car-card[data-rarity="rare"]::after      { background: var(--rare); }
+    .car-card[data-rarity="uncommon"]::after  { background: #38bdf8; }
+    .car-card[data-rarity="common"]::after    { background: var(--common); }
+
+    .card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; }
+    .car-id { font-size: 0.6rem; color: var(--muted); letter-spacing: 0.1em; }
+
+    .rarity-badge { font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; padding: 0.2rem 0.5rem; }
+    .rarity-badge.legendary { background: rgba(245,158,11,0.15); color: var(--legendary); border: 1px solid rgba(245,158,11,0.3); }
+    .rarity-badge.epic      { background: rgba(139,92,246,0.15);  color: #a78bfa;          border: 1px solid rgba(139,92,246,0.3); }
+    .rarity-badge.rare      { background: rgba(99,102,241,0.15);  color: #818cf8;          border: 1px solid rgba(99,102,241,0.3); }
+    .rarity-badge.uncommon  { background: rgba(56,189,248,0.15);  color: #7dd3fc;          border: 1px solid rgba(56,189,248,0.3); }
+    .rarity-badge.common    { background: rgba(16,185,129,0.15);  color: #34d399;          border: 1px solid rgba(16,185,129,0.3); }
+
+    .car-name { font-family: 'Bebas Neue', sans-serif; font-size: 2rem; letter-spacing: 0.08em; line-height: 1; margin-bottom: 0.15rem; }
+    .car-brand { font-size: 0.7rem; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 0.5rem; }
+    .car-type { display: inline-block; font-size: 0.6rem; letter-spacing: 0.1em; color: var(--muted); border: 1px solid var(--border); padding: 0.15rem 0.5rem; text-transform: uppercase; margin-bottom: 1rem; }
+
+    .acquired-date { font-size: 0.6rem; color: var(--muted); letter-spacing: 0.08em; margin-top: 0.75rem; }
+    .acquired-date span { color: var(--accent); }
+
+    /* LOADING / ERROR / EMPTY */
+    .loading { padding: 6rem 3rem; text-align: center; color: var(--muted); font-size: 0.8rem; letter-spacing: 0.15em; }
+    .spinner { width: 24px; height: 24px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .empty-state { padding: 6rem 3rem; text-align: center; color: var(--muted); font-size: 0.8rem; letter-spacing: 0.15em; }
+    .empty-state a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent); }
+    .error-state { padding: 4rem 3rem; text-align: center; }
+    .error-code { font-family: 'Bebas Neue', sans-serif; font-size: 5rem; color: var(--accent2); letter-spacing: 0.1em; line-height: 1; }
+    .error-msg { font-size: 0.75rem; color: var(--muted); letter-spacing: 0.1em; margin-top: 0.5rem; }
+    
+    /* TABS */
+.tabs { display: flex; border-bottom: 1px solid var(--border); padding: 0 3rem; }
+.tab-btn { background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--muted); font-family: 'Bebas Neue', sans-serif; font-size: 1.2rem; letter-spacing: 0.12em; padding: 1rem 1.5rem; cursor: pointer; transition: color 0.2s, border-color 0.2s; margin-bottom: -1px; }
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active { color: var(--accent); border-bottom: 2px solid var(--accent); }
+.cart-badge { font-size: 0.7rem; background: var(--accent); color: #000; padding: 0.1rem 0.4rem; margin-left: 0.3rem; font-family: 'DM Mono', monospace; }
+/* CART */
+.cart-wrap { padding: 2rem 3rem; }
+.cart-table-wrap { border: 1px solid var(--border); margin-bottom: 1.5rem; overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+thead tr { border-bottom: 1px solid var(--border); background: var(--surface); }
+th { padding: 0.75rem 1rem; text-align: left; font-size: 0.6rem; letter-spacing: 0.15em; color: var(--muted); text-transform: uppercase; font-weight: normal; }
+tbody tr { border-bottom: 1px solid var(--border); transition: background 0.15s; }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: rgba(255,255,255,0.02); }
+td { padding: 0.75rem 1rem; }
+.td-muted { color: var(--muted); }
+.btn-danger { background: transparent; color: var(--accent2); border: 1px solid var(--accent2); font-family: 'DM Mono', monospace; font-size: 0.7rem; padding: 0.3rem 0.7rem; cursor: pointer; transition: background 0.15s; }
+.btn-danger:hover { background: var(--accent2); color: #000; }
+.cart-summary { display: flex; justify-content: space-between; align-items: center; padding: 1.5rem; border: 1px solid var(--border); }
+.btn-checkout { background: var(--accent); color: #000; border: none; font-family: 'Bebas Neue', sans-serif; font-size: 1.1rem; letter-spacing: 0.15em; padding: 0.8rem 2.5rem; cursor: pointer; transition: background 0.15s; }
+.btn-checkout:hover { background: #d4eb3a; }
+.btn-checkout:disabled { background: var(--muted); cursor: not-allowed; }
+.checkout-message { margin-top: 1rem; font-size: 0.75rem; letter-spacing: 0.1em; }
+.checkout-message.success { color: var(--common); }
+.checkout-message.error { color: var(--accent2); }
+
+
+    @media (max-width: 768px) {
+      header { padding: 1.5rem; }
+      .grid-wrap { padding: 1rem 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">GARAGE<span>//</span>DB</div>
+  <div class="header-right">
+    <div class="header-meta">
+      <span class="count" id="total-count">—</span>
+      VEHICLES OWNED
+    </div>
+    <a href="cars-dashboard.html" class="back-btn">← DASHBOARD</a>
+  </div>
+</header>
+
+<div class="tabs">
+  <button class="tab-btn active" id="tab-vehicles">MY VEHICLES</button>
+  <button class="tab-btn" id="tab-cart">CART <span class="cart-badge" id="cart-count"></span></button>
+</div>
+
+<div class="stats-bar" id="stats-bar"></div>
+
+<div id="section-vehicles">
+  <div class="grid-wrap">
+    <div class="garage-grid" id="garage-grid">
+      <div class="loading"><div class="spinner"></div>LOADING YOUR GARAGE...</div>
+    </div>
+  </div>
+</div>
+
+<div id="section-cart" style="display:none;">
+  <div class="cart-wrap" id="cart-content"></div>
+</div>
+
+
+<script>
+const token    = localStorage.getItem('token');
+const userJson = localStorage.getItem('user');
+
+if (!token) window.location.href = 'login.html';
+
+function formatPrice(n) {
+  n = parseFloat(n);
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + 'M';
+  if (n >= 1_000)     return (n / 1_000).toFixed(0) + 'K';
+  return n.toFixed(0);
+}
+
+// ── TABS ──
+document.getElementById('tab-vehicles').addEventListener('click', () => {
+  document.getElementById('tab-vehicles').classList.add('active');
+  document.getElementById('tab-cart').classList.remove('active');
+  document.getElementById('section-vehicles').style.display = 'block';
+  document.getElementById('section-cart').style.display = 'none';
+});
+
+document.getElementById('tab-cart').addEventListener('click', () => {
+  document.getElementById('tab-cart').classList.add('active');
+  document.getElementById('tab-vehicles').classList.remove('active');
+  document.getElementById('section-cart').style.display = 'block';
+  document.getElementById('section-vehicles').style.display = 'none';
+  loadCart();
+});
+
+// ── CART BADGE ──
+function updateCartBadge() {
+  const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+  const badge = document.getElementById('cart-count');
+  badge.textContent = cart.length ? cart.length : '';
+}
+
+// ── GARAGE ──
+async function loadGarage() {
+  const grid = document.getElementById('garage-grid');
+  try {
+    const user = JSON.parse(userJson);
+    const res  = await fetch(`http://localhost:3000/api/garage/${user.id}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+
+    document.getElementById('total-count').textContent = data.length;
+
+    if (data.length === 0) {
+      grid.innerHTML = `<div class="empty-state">YOUR GARAGE IS EMPTY<br><br><a href="cars-dashboard.html">→ GO TO SHOP</a></div>`;
+      return;
+    }
+
+    const legendary  = data.filter(v => v.rarity === 'legendary').length;
+    const totalSpent = data.reduce((a, v) => a + parseFloat(v.unit_price || 0), 0);
+    const topSpeed   = Math.max(...data.map(v => v.max_speed || 0));
+
+    const statsBar = document.getElementById('stats-bar');
+    statsBar.innerHTML = [
+      { label: 'Total Spent', value: '$' + formatPrice(totalSpent) },
+      { label: 'Top Speed',   value: topSpeed + ' km/h' },
+      { label: 'Legendary',   value: legendary },
+      { label: 'Vehicles',    value: data.length },
+    ].map(s => `
+      <div class="stat-item">
+        <div class="stat-label">${s.label}</div>
+        <div class="stat-value">${s.value}</div>
+      </div>`).join('');
+
+    requestAnimationFrame(() => {
+      statsBar.querySelectorAll('.stat-item').forEach((el, i) => {
+        setTimeout(() => el.classList.add('visible'), i * 80);
+      });
+    });
+
+    grid.innerHTML = data.map(v => {
+      const rar = (v.rarity || 'common').toLowerCase();
+      return `
+        <a href="car-detail.html?id=${v.car_id}" class="car-card" data-rarity="${rar}">
+          <div class="card-top">
+            <div class="car-id">#${String(v.car_id).padStart(4,'0')}</div>
+            <span class="rarity-badge ${rar}">${rar}</span>
+          </div>
+          <div class="car-name">${v.name}</div>
+          <div class="car-brand">${v.brand || '—'}</div>
+          <div class="car-type">${v.type || '—'}</div>
+          <div class="acquired-date">
+            ACQUIRED <span>${new Date(v.acquired_at).toLocaleDateString()}</span>
+            — PAID <span>$${formatPrice(parseFloat(v.unit_price || 0))}</span>
+          </div>
+        </a>`;
+    }).join('');
+
+    requestAnimationFrame(() => {
+      grid.querySelectorAll('.car-card').forEach((el, i) => {
+        setTimeout(() => el.classList.add('visible'), Math.min(i * 40, 400));
+      });
+    });
+
+  } catch (err) {
+    document.getElementById('garage-grid').innerHTML = `
+      <div class="error-state">
+        <div class="error-code">ERR</div>
+        <div class="error-msg">${err.message}</div>
+      </div>`;
+  }
+}
+
+// ── CART ──
+function loadCart() {
+  const cart    = JSON.parse(localStorage.getItem('cart') || '[]');
+  const content = document.getElementById('cart-content');
+
+  if (cart.length === 0) {
+    content.innerHTML = `<div class="empty-state">CART IS EMPTY — <a href="cars-dashboard.html">→ GO TO SHOP</a></div>`;
+    return;
+  }
+
+  const total = cart.reduce((a, c) => a + parseFloat(c.price) * c.quantity, 0);
+
+  content.innerHTML = `
+    <div class="cart-table-wrap">
+      <table>
+        <thead><tr><th>Vehicle</th><th>Unit Price</th><th>Qty</th><th></th></tr></thead>
+        <tbody>
+          ${cart.map((item, i) => `
+            <tr>
+              <td>${item.name}</td>
+              <td class="td-muted">$${formatPrice(parseFloat(item.price))}</td>
+              <td class="td-muted">${item.quantity}</td>
+              <td><button class="btn-danger" onclick="removeFromCart(${i})">REMOVE</button></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+    <div class="cart-summary">
+      <div>
+        <div style="font-size:0.6rem;letter-spacing:0.15em;color:var(--muted);margin-bottom:0.3rem;">TOTAL</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:2.5rem;color:var(--accent);">$${formatPrice(total)}</div>
+      </div>
+      <button class="btn-checkout" id="btn-checkout">CONFIRM ORDER</button>
+    </div>
+    <div class="checkout-message" id="checkout-message"></div>
+  `;
+
+  document.getElementById('btn-checkout').addEventListener('click', checkout);
+}
+
+function removeFromCart(index) {
+  const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+  cart.splice(index, 1);
+  localStorage.setItem('cart', JSON.stringify(cart));
+  updateCartBadge();
+  loadCart();
+}
+
+async function checkout() {
+  const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+  const btn  = document.getElementById('btn-checkout');
+  const msg  = document.getElementById('checkout-message');
+
+  btn.textContent = 'PROCESSING...';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch('http://localhost:3000/api/orders', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        items: cart.map(c => ({ car_id: c.car_id, quantity: c.quantity }))
+      })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      msg.textContent = data.message || 'Erreur';
+      msg.className = 'checkout-message error';
+      btn.textContent = 'CONFIRM ORDER';
+      btn.disabled = false;
+      return;
+    }
+
+    localStorage.removeItem('cart');
+    msg.textContent = `✓ Commande #${data.order_id} validée !`;
+    msg.className = 'checkout-message success';
+    updateCartBadge();
+
+    setTimeout(() => {
+      loadGarage();
+      document.getElementById('tab-vehicles').click();
+    }, 1000);
+
+  } catch (err) {
+    msg.textContent = 'Erreur réseau';
+    msg.className = 'checkout-message error';
+    btn.textContent = 'CONFIRM ORDER';
+    btn.disabled = false;
+  }
+}
+
+// ── INIT ──
+updateCartBadge();
+loadGarage();
+</script>
+</body>
+</html>
