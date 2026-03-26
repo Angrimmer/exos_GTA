@@ -5,10 +5,10 @@ const pool = require("../config/db");
 // GET /cars -> liste toutes les voitures
 router.get("/", async (req, res) => {
   try {
-    const [rows] = await pool.query("SELECT * FROM cars");
+    const [rows] = await pool.query("SELECT * FROM vehicles");
     res.json(rows);
   } catch (error) {
-    console.error("Erreur MySQL /cars :", error);
+    console.error("Erreur MySQL /vehicles :", error);
     res.status(500).json({ error: "Erreur serveur" });
   }
 });
@@ -31,7 +31,7 @@ router.post("/", async (req, res) => {
 
   try {
     const sql = `
-      INSERT INTO cars
+      INSERT INTO vehicles
         (name, brand, type, max_speed, price, rarity, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `;
@@ -59,22 +59,22 @@ router.post("/", async (req, res) => {
       created_at
     });
   } catch (error) {
-    console.error("Erreur MySQL POST /cars :", error);
+    console.error("Erreur MySQL POST /vehicles :", error);
     res.status(500).json({ message: "Erreur serveur" });
   }
 });
 
-// GET /cars/:id -> retourne une voiture par son id
+// GET /vehicles/:id -> retourne une voiture par son id
 router.get("/:id", async (req, res) => {
   const { id } = req.params;
   try {
-    const [rows] = await pool.query("SELECT * FROM cars WHERE id = ?", [id]);
+    const [rows] = await pool.query("SELECT * FROM vehicles WHERE id = ?", [id]);
     if (rows.length === 0) {
       return res.status(404).json({ message: "Véhicule introuvable" });
     }
     res.json(rows[0]);
   } catch (error) {
-    console.error("Erreur MySQL GET /cars/:id :", error);
+    console.error("Erreur MySQL GET /vehicles/:id :", error);
     res.status(500).json({ error: "Erreur serveur" });
   }
 });

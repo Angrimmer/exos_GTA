@@ -4,6 +4,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const cors = require("cors")
 
+const shopRouter = require("./src/routes/shop");
 const carsRouter = require("./src/routes/cars");
 const usersRouter = require("./src/routes/users");
 
@@ -15,6 +16,7 @@ app.get("/api/health", (req, res) => {
 });
 
 app.use("/api/cars", carsRouter); 
+app.use("/api/shop", shopRouter);
 app.use("/api/users", usersRouter); 
 
 app.listen(PORT, () => {
